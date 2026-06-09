@@ -1,0 +1,33 @@
+# ── Dependencias ───────────────────────────────────────────
+node_modules/
+scraper/node_modules/
+
+# ── Build ──────────────────────────────────────────────────
+dist/
+build/
+.vite/
+
+# ── Variables de entorno (NUNCA subir al repo) ─────────────
+.env
+.env.local
+.env.production
+.env.production.local
+scraper/.env
+
+# ── Logs y debug ───────────────────────────────────────────
+*.log
+npm-debug.log*
+logs/
+scraper/debug.png
+scraper/races_scraped.json
+
+# ── Sistema operativo ──────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/settings.json
+
+# ── Firebase ───────────────────────────────────────────────
+.firebase/
+firebase-debug.log
+firestore-debug.log

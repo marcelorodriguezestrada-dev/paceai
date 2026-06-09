@@ -1,0 +1,15 @@
+{
+  "name": "paceai-scraper",
+  "version": "1.0.0",
+  "description": "Scraper de carreras desde dondecorrer.com → Firebase",
+  "private": true,
+  "scripts": {
+    "start": "node scraper.js",
+    "debug": "PUPPETEER_HEADLESS=false node scraper.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "node-fetch": "^2.7.0",
+    "puppeteer": "^22.0.0"
+  }
+}
