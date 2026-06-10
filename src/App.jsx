@@ -361,9 +361,9 @@ export default function RunnerAI() {
     const newMsgs = [...msgs, { role: "user", content: text }];
     setMsgs(newMsgs); setChatInput(""); setChatLoading(true);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: coachPrompt(profile), messages: newMsgs }),
+        body: JSON.stringify({  system: coachPrompt(profile), messages: newMsgs }),
       });
       const d = await res.json();
       setMsgs(p => [...p, { role: "assistant", content: d.content?.[0]?.text || "Error al responder." }]);
@@ -374,10 +374,10 @@ export default function RunnerAI() {
   const genTrainPlan = async (race) => {
     setGenPlan(true); setView("training"); setActiveWeek(0);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 1000,
+          
           messages: [{ role: "user", content: `Generá plan de entrenamiento para "${race.name}" (${race.distance}), fecha ${race.date}, terreno ${race.terrain}, clima ${race.weather}.${profile ? ` Perfil: nivel ${profile.level}, ${profile.age} años, ${profile.days} días/semana.` : ""}
 Respondé SOLO con JSON sin markdown:
 {"semanas":[{"numero":1,"objetivo":"string","sesiones":[{"dia":"Lunes","tipo":"Recuperación","distancia":"5K","ritmo":"6:30/km","descripcion":"string"}],"consejo":"string"}],"consejos_generales":["string"],"nutricion":"string","calzado":"string"}
@@ -406,15 +406,13 @@ Respondé SOLO con JSON sin markdown:
     setPrLoading(true);
     try {
       const b64 = await fileToBase64(prPhoto);
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/vision", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 1000,
+          imageBase64: b64,
+          imageType: prPhoto.type,
           system: `Sos PaceAI, coach de running argentino. Analizás fotos post-carrera. Hablás en español rioplatense, de vos a vos.`,
-          messages: [{ role: "user", content: [
-            { type: "image", source: { type: "base64", media_type: prPhoto.type, data: b64 } },
-            { type: "text", text: `Analizá esta imagen post-carrera${profile ? ` del corredor ${profile.name} (nivel ${profile.level}, objetivo: "${profile.goal}")` : ""}. Si es resultado: extraé tiempo, pace, posición. Si es foto: comentá postura y esfuerzo. Terminá con: (1) puntaje 0-100%, (2) principal logro, (3) área a mejorar.` }
-          ]}],
+          text: `Analizá esta imagen post-carrera${profile ? ` del corredor ${profile.name} (nivel ${profile.level}, objetivo: "${profile.goal}")` : ""}. Si es resultado: extraé tiempo, pace, posición. Si es foto: comentá postura y esfuerzo. Terminá con: (1) puntaje 0-100%, (2) principal logro, (3) área a mejorar.`,
         }),
       });
       const d = await res.json();
@@ -436,10 +434,10 @@ Respondé SOLO con JSON sin markdown:
   const loadTourism = async (race) => {
     setTourRace(race); setTourAI(""); setTourLoading(true);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 1000,
+          
           messages: [{ role: "user", content: `Guía turística completa para la "${race.name}" (${race.distance}) en ${race.location}. Incluí: 🍝 dónde comer la noche anterior (2-3 opciones con precio), 🏨 hoteles recomendados cerca (2-3), 🚗 estacionamiento y transporte público, 👨‍👩‍👧 qué hacer la familia mientras corro, 🎭 actividad cultural post-carrera, ⚡ 3 tips logísticos clave. Español rioplatense, concreto.` }],
         }),
       });
