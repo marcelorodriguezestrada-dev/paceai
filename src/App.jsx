@@ -1,17 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 
-// ═══════════════════════════════════════════════════
-// 🔥 FIREBASE CONFIG — Reemplazá con tus valores
-// ═══════════════════════════════════════════════════
 const FB = {
-  apiKey: "TU_API_KEY",
-  projectId: "TU_PROJECT_ID",
-  bucket: "TU_PROJECT_ID.appspot.com",
+  apiKey:    import.meta.env.VITE_FB_API_KEY    || "TU_API_KEY",
+  projectId: import.meta.env.VITE_FB_PROJECT_ID || "TU_PROJECT_ID",
+  bucket:    import.meta.env.VITE_FB_BUCKET     || "TU_PROJECT_ID.appspot.com",
 };
 
-// ═══════════════════════════════════════════════════
-// 🔥 FIREBASE REST API HELPERS
-// ═══════════════════════════════════════════════════
 const fbRegister = async (email, password) => {
   const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FB.apiKey}`, {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -91,50 +85,33 @@ const fileToBase64 = (file) => new Promise((res, rej) => {
   r.readAsDataURL(file);
 });
 
-// ═══════════════════════════════════════════════════
-// DATA
-// ═══════════════════════════════════════════════════
 const RACES = [
-  { id: 1, name: "10K Palermo Classic", date: "2025-07-13", distance: "10K", location: "Parque Tres de Febrero, CABA", terrain: "asfalto plano", weather: "invierno", difficulty: "fácil", image: "🏃", registered: 3200, prize: "Medalla + remera técnica",
-    tourism: { zone: "Palermo", hotel_zone: "Palermo Soho / Las Cañitas", parking: "Av. del Libertador y Av. Sarmiento", metro: "D - Palermo", cultural: "MALBA, Planetario, Jardín Japonés" }},
-  { id: 2, name: "Media Maratón de Buenos Aires", date: "2025-08-17", distance: "21K", location: "Av. Figueroa Alcorta, CABA", terrain: "asfalto mixto", weather: "invierno tardío", difficulty: "moderado", image: "🌆", registered: 8500, prize: "Medalla finisher + cronometraje",
-    tourism: { zone: "Recoleta / Palermo", hotel_zone: "Recoleta, Retiro o Palermo", parking: "Playa Figueroa Alcorta o Costa Salguero", metro: "D - Facultad de Medicina", cultural: "Cementerio de la Recoleta, Floralis Genérica, MUBA" }},
-  { id: 3, name: "5K Nocturna del Rosedal", date: "2025-09-06", distance: "5K", location: "Jardín Japonés, CABA", terrain: "caminos de tierra", weather: "primavera", difficulty: "fácil", image: "🌙", registered: 1800, prize: "Medalla iluminada",
-    tourism: { zone: "Palermo", hotel_zone: "Palermo Hollywood / Soho", parking: "Av. Casares o Av. del Libertador", metro: "D - Palermo", cultural: "Planetario (noche), Bosques de Palermo, Rosedal" }},
-  { id: 4, name: "Maratón de Buenos Aires", date: "2025-10-19", distance: "42K", location: "Obelisco — Av. Corrientes", terrain: "asfalto con adoquines", weather: "primavera cálida", difficulty: "avanzado", image: "🏆", registered: 12000, prize: "Medalla + camiseta oficial",
-    tourism: { zone: "Centro / San Telmo / Puerto Madero", hotel_zone: "Microcentro, San Telmo o Puerto Madero", parking: "Subterráneo Catalinas, Retiro", metro: "B - Callao, C - Diagonal Norte", cultural: "Caminito, Feria de San Telmo, Teatro Colón, Puerto Madero" }},
-  { id: 5, name: "21K Villa del Parque", date: "2025-11-02", distance: "21K", location: "Parque del Centenario, CABA", terrain: "circuito urbano", weather: "primavera", difficulty: "moderado", image: "🌳", registered: 4200, prize: "Finisher kit completo",
-    tourism: { zone: "Villa del Parque / Caballito", hotel_zone: "Caballito o Villa del Parque", parking: "Av. Ángel Gallardo al 700", metro: "B - Ángel Gallardo", cultural: "Parque del Centenario, Planetario, Feria de coleccionistas" }},
-  { id: 6, name: "Trail Sierra Ventana", date: "2025-11-30", distance: "30K", location: "Sierra de la Ventana, Bs. As.", terrain: "montaña y senderos", weather: "verano inicial", difficulty: "avanzado", image: "⛰️", registered: 900, prize: "Trofeo artesanal + experiencia única",
-    tourism: { zone: "Sierra de la Ventana (600km de CABA)", hotel_zone: "Villa Ventana, Tornquist o Sierra de la Ventana pueblo", parking: "Club Atlético Sierra de la Ventana", metro: "No aplica — tren desde Constitución o auto", cultural: "Cerro Tres Picos, Cueva de las Pinturas Rupestres, La Ventana pueblo" }},
+  { id: 1, name: "10K Palermo Classic", date: "2025-07-13", distance: "10K", location: "Parque Tres de Febrero, CABA", terrain: "asfalto plano", weather: "invierno", difficulty: "fácil", image: "🏃", registered: 3200, prize: "Medalla + remera técnica", tourism: { zone: "Palermo", hotel_zone: "Palermo Soho / Las Cañitas", parking: "Av. del Libertador y Av. Sarmiento", metro: "D - Palermo", cultural: "MALBA, Planetario, Jardín Japonés" }},
+  { id: 2, name: "Media Maratón de Buenos Aires", date: "2025-08-17", distance: "21K", location: "Av. Figueroa Alcorta, CABA", terrain: "asfalto mixto", weather: "invierno tardío", difficulty: "moderado", image: "🌆", registered: 8500, prize: "Medalla finisher + cronometraje", tourism: { zone: "Recoleta / Palermo", hotel_zone: "Recoleta, Retiro o Palermo", parking: "Playa Figueroa Alcorta o Costa Salguero", metro: "D - Facultad de Medicina", cultural: "Cementerio de la Recoleta, Floralis Genérica, MUBA" }},
+  { id: 3, name: "5K Nocturna del Rosedal", date: "2025-09-06", distance: "5K", location: "Jardín Japonés, CABA", terrain: "caminos de tierra", weather: "primavera", difficulty: "fácil", image: "🌙", registered: 1800, prize: "Medalla iluminada", tourism: { zone: "Palermo", hotel_zone: "Palermo Hollywood / Soho", parking: "Av. Casares o Av. del Libertador", metro: "D - Palermo", cultural: "Planetario (noche), Bosques de Palermo, Rosedal" }},
+  { id: 4, name: "Maratón de Buenos Aires", date: "2025-10-19", distance: "42K", location: "Obelisco — Av. Corrientes", terrain: "asfalto con adoquines", weather: "primavera cálida", difficulty: "avanzado", image: "🏆", registered: 12000, prize: "Medalla + camiseta oficial", tourism: { zone: "Centro / San Telmo / Puerto Madero", hotel_zone: "Microcentro, San Telmo o Puerto Madero", parking: "Subterráneo Catalinas, Retiro", metro: "B - Callao, C - Diagonal Norte", cultural: "Caminito, Feria de San Telmo, Teatro Colón, Puerto Madero" }},
+  { id: 5, name: "21K Villa del Parque", date: "2025-11-02", distance: "21K", location: "Parque del Centenario, CABA", terrain: "circuito urbano", weather: "primavera", difficulty: "moderado", image: "🌳", registered: 4200, prize: "Finisher kit completo", tourism: { zone: "Villa del Parque / Caballito", hotel_zone: "Caballito o Villa del Parque", parking: "Av. Ángel Gallardo al 700", metro: "B - Ángel Gallardo", cultural: "Parque del Centenario, Planetario, Feria de coleccionistas" }},
+  { id: 6, name: "Trail Sierra Ventana", date: "2025-11-30", distance: "30K", location: "Sierra de la Ventana, Bs. As.", terrain: "montaña y senderos", weather: "verano inicial", difficulty: "avanzado", image: "⛰️", registered: 900, prize: "Trofeo artesanal + experiencia única", tourism: { zone: "Sierra de la Ventana (600km de CABA)", hotel_zone: "Villa Ventana, Tornquist o Sierra de la Ventana pueblo", parking: "Club Atlético Sierra de la Ventana", metro: "No aplica — tren desde Constitución o auto", cultural: "Cerro Tres Picos, Cueva de las Pinturas Rupestres, La Ventana pueblo" }},
 ];
 
 const PLANS = [
-  { id: "basico", name: "BÁSICO", price: "Gratis", color: "#555", accent: "#999",
-    features: ["Hasta 3 carreras registradas", "1 mes de plan de entrenamiento", "Resumen semanal de actividades", "Calendario de carreras BA", "Acceso comunidad básica"], cta: "Comenzar gratis" },
-  { id: "ilimitado", name: "ILIMITADO", price: "$4.990/mes", color: "#FF4500", accent: "#FF6B35",
-    features: ["Carreras ilimitadas", "Coaching en nutrición y alimentación", "Gestión del esfuerzo por etapas", "Análisis post-carrera con fotos", "Guía turística por sede de carrera", "Chat con IA sin límites"], cta: "Activar plan", popular: true },
-  { id: "experto", name: "EXPERTO", price: "$9.990/mes", color: "#FFD700", accent: "#FFF176",
-    features: ["Todo lo anterior", "Métricas avanzadas: VO2Max, lactato", "Planes por ritmo (pace) personalizado", "Análisis biomecánico por video", "Sesiones 1:1 con coach humano", "Acceso a biblioteca de corredores élite"], cta: "Quiero optimizar" },
+  { id: "basico", name: "BÁSICO", price: "Gratis", color: "#555", accent: "#999", features: ["Hasta 3 carreras registradas", "1 mes de plan de entrenamiento", "Resumen semanal de actividades", "Calendario de carreras BA", "Acceso comunidad básica"], cta: "Comenzar gratis" },
+  { id: "ilimitado", name: "ILIMITADO", price: "$4.990/mes", color: "#FF4500", accent: "#FF6B35", features: ["Carreras ilimitadas", "Coaching en nutrición y alimentación", "Gestión del esfuerzo por etapas", "Análisis post-carrera con fotos", "Guía turística por sede de carrera", "Chat con IA sin límites"], cta: "Activar plan", popular: true },
+  { id: "experto", name: "EXPERTO", price: "$9.990/mes", color: "#FFD700", accent: "#FFF176", features: ["Todo lo anterior", "Métricas avanzadas: VO2Max, lactato", "Planes por ritmo (pace) personalizado", "Análisis biomecánico por video", "Sesiones 1:1 con coach humano", "Acceso a biblioteca de corredores élite"], cta: "Quiero optimizar" },
 ];
 
 const diffColor = { "fácil": "#4CAF50", "moderado": "#FF9800", "avanzado": "#FF4500" };
 const daysUntil = (d) => Math.ceil((new Date(d) - new Date()) / 86400000);
-
 const coachPrompt = (profile) => `Sos PaceAI, el coach de running más avanzado de Argentina. Tenés el conocimiento técnico de Jack Daniels, la filosofía de Murakami sobre correr, y la calidez de un entrenador porteño.
 ${profile ? `Perfil del corredor: ${profile.name}, ${profile.age} años, ${profile.weight}kg, ${profile.height}cm, nivel ${profile.level}, objetivo: "${profile.goal}", entrena ${profile.days} días/semana.` : ""}
 Hablás de vos a vos. Mezclás técnica con motivación. Respondés en español rioplatense, conciso (3-4 párrafos máx).`;
 
-// ═══════════════════════════════════════════════════
-// STYLES
-// ═══════════════════════════════════════════════════
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@300;400;500;600&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#080808;--bg2:#111;--bg3:#1a1a1a;--or:#FF4500;--gold:#FFD700;--tx:#F0F0F0;--mu:#888;--bd:#2a2a2a;--fd:'Anton',sans-serif;--fb:'DM Sans',sans-serif}
 body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 .app{min-height:100vh}
-/* NAV */
 .nav{position:sticky;top:0;z-index:200;background:rgba(8,8,8,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:58px;gap:12px}
 .logo{font-family:var(--fd);font-size:1.5rem;color:var(--or);cursor:pointer;white-space:nowrap}
 .logo span{color:var(--tx)}
@@ -145,7 +122,6 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 .nav-r{display:flex;gap:8px;align-items:center;flex-shrink:0}
 .nav-btn{background:var(--or);color:#fff;border:none;padding:7px 16px;border-radius:6px;font-family:var(--fb);font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap}
 .ava{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--or),var(--gold));display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;cursor:pointer;border:none;color:#000;flex-shrink:0}
-/* HERO */
 .hero{position:relative;overflow:hidden;padding:72px 24px 56px}
 .hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 75% 50%,rgba(255,69,0,.11) 0,transparent 60%),radial-gradient(ellipse 50% 40% at 20% 80%,rgba(255,215,0,.05) 0,transparent 50%);pointer-events:none}
 .hc{max-width:900px;margin:0 auto;position:relative}
@@ -161,19 +137,16 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 .hstats{display:flex;gap:36px;margin-top:44px;padding-top:28px;border-top:1px solid var(--bd);flex-wrap:wrap}
 .stn{font-family:var(--fd);font-size:1.9rem;color:var(--or);line-height:1}
 .stl{font-size:.72rem;color:var(--mu);text-transform:uppercase;letter-spacing:1px}
-/* FEAT STRIP */
 .fstrip{background:var(--bg2);border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);padding:36px 24px}
 .fi{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:28px}
 .fitm .ico{font-size:1.6rem;display:block;margin-bottom:6px}
 .fitm .fn{font-weight:700;font-size:.9rem;margin-bottom:3px}
 .fitm .fd{font-size:.8rem;color:var(--mu);line-height:1.5}
-/* SECTION */
 .sec{padding:52px 24px;max-width:1100px;margin:0 auto}
 .sh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:10px}
 .st{font-family:var(--fd);font-size:2rem;color:var(--tx)}
 .st span{color:var(--or)}
 .sall{background:none;border:none;color:var(--or);font-size:.82rem;font-weight:700;cursor:pointer;padding:4px 0}
-/* RACE CARDS */
 .rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
 .rcard{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;overflow:hidden;cursor:pointer;transition:.25s}
 .rcard:hover{border-color:var(--or);transform:translateY(-3px);box-shadow:0 10px 28px rgba(255,69,0,.14)}
@@ -186,7 +159,6 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 .rf{padding:10px 18px;border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
 .dbadge{padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:700;text-transform:uppercase}
 .daybadge{font-size:.78rem;font-weight:600;color:var(--gold)}
-/* PLANS */
 .pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
 .pcard{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:26px;position:relative;transition:.25s}
 .pcard.pop{border-color:var(--or);background:linear-gradient(180deg,rgba(255,69,0,.06) 0,var(--bg2) 100%)}
@@ -198,7 +170,6 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 .pf{display:flex;gap:7px;font-size:.82rem;color:var(--mu);align-items:flex-start}
 .pf::before{content:"✓";color:var(--or);font-weight:700;flex-shrink:0}
 .pbtn{width:100%;padding:11px;border-radius:7px;font-family:var(--fb);font-weight:700;font-size:.88rem;cursor:pointer;transition:.2s;border:none}
-/* PROFILE */
 .ppage{max-width:520px;margin:0 auto;padding:40px 24px}
 .ptitle{font-family:var(--fd);font-size:2.3rem;margin-bottom:6px}
 .psub{color:var(--mu);font-size:.88rem;margin-bottom:28px;line-height:1.5}
@@ -213,7 +184,6 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 .lopt.sel{border-color:var(--or);background:rgba(255,69,0,.1)}
 .lic{font-size:1.3rem;display:block;margin-bottom:3px}
 .ln{font-size:.78rem;font-weight:600}
-/* CHAT */
 .chat{display:flex;flex-direction:column;height:calc(100vh - 58px);max-width:740px;margin:0 auto;padding:0 20px}
 .chatheader{padding:18px 0 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:12px}
 .chatava{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--or),#FF8C42);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
@@ -242,7 +212,6 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 .qps{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
 .qp{background:var(--bg3);border:1px solid var(--bd);color:var(--mu);padding:5px 11px;border-radius:20px;font-size:.75rem;cursor:pointer;transition:.2s;font-family:var(--fb)}
 .qp:hover{border-color:var(--or);color:var(--or)}
-/* TRAINING */
 .tpage{max-width:880px;margin:0 auto;padding:30px 24px}
 .ttitle{font-family:var(--fd);font-size:2rem}
 .trace{font-size:.88rem;color:var(--mu);margin-top:3px}
@@ -263,11 +232,9 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 .exc{background:var(--bg2);border:1px solid var(--bd);border-radius:9px;padding:16px}
 .ext{font-weight:700;font-size:.8rem;color:var(--or);margin-bottom:7px;text-transform:uppercase;letter-spacing:1px}
 .exd{font-size:.82rem;color:var(--mu);line-height:1.6}
-/* POST RACE */
 .prpage{max-width:740px;margin:0 auto;padding:36px 24px}
 .dropzone{border:2px dashed var(--bd);border-radius:12px;padding:48px 24px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:20px}
-.dropzone:hover{border-color:var(--or);background:rgba(255,69,0,.04)}
-.dropzone.has{border-color:var(--or);background:rgba(255,69,0,.04)}
+.dropzone:hover,.dropzone.has{border-color:var(--or);background:rgba(255,69,0,.04)}
 .dropico{font-size:2.5rem;display:block;margin-bottom:10px}
 .droptxt{font-size:.9rem;color:var(--mu)}
 .dropimg{max-width:100%;border-radius:8px;margin-top:12px;max-height:280px;object-fit:contain}
@@ -277,7 +244,6 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 .hist-item{background:var(--bg2);border:1px solid var(--bd);border-radius:9px;padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px}
 .hist-date{font-size:.75rem;color:var(--mu);flex-shrink:0}
 .hist-preview{font-size:.82rem;color:var(--tx);flex:1}
-/* TOURISM */
 .tourpage{max-width:900px;margin:0 auto;padding:36px 24px}
 .tour-select{margin-bottom:28px}
 .tour-label{font-family:var(--fd);font-size:1.6rem;margin-bottom:12px}
@@ -292,17 +258,16 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 .ai-tour{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:20px;margin-top:8px}
 .ai-tour h3{font-family:var(--fd);font-size:1.3rem;margin-bottom:12px;color:var(--gold)}
 .ai-tour p{font-size:.86rem;line-height:1.7;color:var(--mu);white-space:pre-wrap}
-/* AUTH MODAL */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px}
-.modal{background:var(--bg2);border:1px solid var(--bd);border-radius:16px;padding:32px;width:100%;max-width:400px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:var(--bg2);border:1px solid var(--bd);border-radius:16px;padding:32px;width:100%;max-width:400px;position:relative}
 .modal h2{font-family:var(--fd);font-size:2rem;margin-bottom:6px}
-.modal p{font-size:.85rem;color:var(--mu);margin-bottom:24px}
-.ferr{color:#FF4444;font-size:.82rem;margin-bottom:12px;padding:10px 14px;background:rgba(255,68,68,.1);border-radius:6px}
+.modal-sub{font-size:.85rem;color:var(--mu);margin-bottom:24px}
+.ferr{color:#FF6666;font-size:.82rem;margin-top:10px;padding:10px 14px;background:rgba(255,68,68,.1);border-radius:6px;border:1px solid rgba(255,68,68,.2)}
 .mtabs{display:flex;margin-bottom:24px;border:1px solid var(--bd);border-radius:8px;overflow:hidden}
 .mtab{flex:1;padding:9px;background:none;border:none;color:var(--mu);font-family:var(--fb);font-weight:600;font-size:.85rem;cursor:pointer;transition:.2s}
 .mtab.act{background:var(--or);color:#fff}
-.mclose{position:absolute;right:12px;top:12px;background:none;border:none;color:var(--mu);font-size:1.2rem;cursor:pointer;padding:4px 8px}
-/* UTILS */
+.mclose{position:absolute;right:14px;top:14px;background:none;border:none;color:var(--mu);font-size:1.3rem;cursor:pointer;padding:4px 8px;line-height:1;border-radius:4px}
+.mclose:hover{color:var(--tx);background:var(--bg3)}
 .pw{padding:40px 24px;max-width:1100px;margin:0 auto}
 .back{background:none;border:none;color:var(--mu);font-size:.82rem;cursor:pointer;margin-bottom:20px;display:flex;align-items:center;gap:5px;padding:0;font-family:var(--fb)}
 .back:hover{color:var(--or)}
@@ -310,14 +275,10 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 @keyframes sp{to{transform:rotate(360deg)}}
 .lcenter{text-align:center;padding:72px 20px}
 .ltxt{font-family:var(--fd);font-size:1.4rem;color:var(--mu)}
-.tag{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700;text-transform:uppercase;margin-right:6px}
 .saved-badge{background:rgba(76,175,80,.15);border:1px solid rgba(76,175,80,.3);color:#4CAF50;padding:6px 14px;border-radius:6px;font-size:.8rem;font-weight:600}
 @media(max-width:600px){.frow{grid-template-columns:1fr}.nav-links{display:none}.srow{grid-template-columns:80px 1fr;grid-template-rows:auto auto}.sdist{display:none}}
 `;
 
-// ═══════════════════════════════════════════════════
-// MAIN COMPONENT
-// ═══════════════════════════════════════════════════
 export default function RunnerAI() {
   const [view, setView] = useState("home");
   const [user, setUser] = useState(null);
@@ -331,35 +292,29 @@ export default function RunnerAI() {
   const [trainPlan, setTrainPlan] = useState(null);
   const [genPlan, setGenPlan] = useState(false);
   const [activeWeek, setActiveWeek] = useState(0);
-  // Auth
   const [showAuth, setShowAuth] = useState(false);
   const [authTab, setAuthTab] = useState("login");
   const [authForm, setAuthForm] = useState({ email: "", password: "" });
   const [authLoading, setAuthLoading] = useState(false);
   const [authErr, setAuthErr] = useState("");
-  // Post-race
   const [prPhoto, setPrPhoto] = useState(null);
   const [prPreview, setPrPreview] = useState(null);
   const [prAnalysis, setPrAnalysis] = useState(null);
   const [prLoading, setPrLoading] = useState(false);
   const [prHistory, setPrHistory] = useState([]);
   const [savingPR, setSavingPR] = useState(false);
-  // Tourism
   const [tourRace, setTourRace] = useState(null);
   const [tourAI, setTourAI] = useState("");
   const [tourLoading, setTourLoading] = useState(false);
-  const [savedPlans, setSavedPlans] = useState([]);
-
   const chatEnd = useRef(null);
   const fileRef = useRef(null);
 
   useEffect(() => { chatEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
-  // Load saved data when user logs in
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const p = await fbGet(`users`, user.uid, user.token).catch(() => null);
+      const p = await fbGet("users", user.uid, user.token).catch(() => null);
       if (p) { setProfile(p); setPForm(p); }
       const analyses = await fbList(`analyses_${user.uid}`, user.token).catch(() => []);
       setPrHistory(analyses.reverse().slice(0, 5));
@@ -368,15 +323,31 @@ export default function RunnerAI() {
 
   // ── AUTH ──
   const doAuth = async () => {
-    setAuthErr(""); setAuthLoading(true);
+    if (!authForm.email || !authForm.password) {
+      setAuthErr("Completá email y contraseña.");
+      return;
+    }
+    setAuthErr("");
+    setAuthLoading(true);
     try {
-      const u = authTab === "login" ? await fbLogin(authForm.email, authForm.password) : await fbRegister(authForm.email, authForm.password);
-      setUser(u); setShowAuth(false);
-    } catch (e) { setAuthErr(e.message.replace("_", " ")); }
+      const u = authTab === "login"
+        ? await fbLogin(authForm.email, authForm.password)
+        : await fbRegister(authForm.email, authForm.password);
+      setUser(u);
+      setShowAuth(false);
+      setAuthForm({ email: "", password: "" });
+    } catch (e) {
+      const msg = e.message
+        .replace("EMAIL_EXISTS", "Este email ya está registrado. Probá ingresar.")
+        .replace("INVALID_LOGIN_CREDENTIALS", "Email o contraseña incorrectos.")
+        .replace("WEAK_PASSWORD : Password should be at least 6 characters", "La contraseña debe tener al menos 6 caracteres.")
+        .replace("INVALID_EMAIL", "El email no es válido.")
+        .replace(/_/g, " ");
+      setAuthErr(msg);
+    }
     setAuthLoading(false);
   };
 
-  // ── SAVE PROFILE ──
   const saveProfile = async () => {
     if (!pForm.name || !pForm.age) return;
     setProfile(pForm);
@@ -384,7 +355,6 @@ export default function RunnerAI() {
     setView("home");
   };
 
-  // ── CHAT ──
   const sendMsg = async (txt) => {
     const text = txt || chatInput.trim();
     if (!text) return;
@@ -401,7 +371,6 @@ export default function RunnerAI() {
     setChatLoading(false);
   };
 
-  // ── TRAINING PLAN ──
   const genTrainPlan = async (race) => {
     setGenPlan(true); setView("training"); setActiveWeek(0);
     try {
@@ -420,19 +389,16 @@ Respondé SOLO con JSON sin markdown:
       const plan = JSON.parse(text.replace(/```json|```/g, "").trim());
       const full = { ...plan, race };
       setTrainPlan(full);
-      if (user) {
-        await fbSet(`plans_${user.uid}`, `${race.id}_${Date.now()}`, { race: JSON.stringify(race), plan: JSON.stringify(plan), createdAt: new Date().toISOString() }, user.token).catch(() => null);
-      }
+      if (user) await fbSet(`plans_${user.uid}`, `${race.id}_${Date.now()}`, { race: JSON.stringify(race), plan: JSON.stringify(plan), createdAt: new Date().toISOString() }, user.token).catch(() => null);
     } catch { setTrainPlan({ error: true, race }); }
     setGenPlan(false);
   };
 
-  // ── POST RACE ANALYSIS ──
   const handlePhotoSelect = (file) => {
     if (!file) return;
     setPrPhoto(file);
-    const url = URL.createObjectURL(file);
-    setPrPreview(url); setPrAnalysis(null);
+    setPrPreview(URL.createObjectURL(file));
+    setPrAnalysis(null);
   };
 
   const analyzeRace = async () => {
@@ -444,23 +410,16 @@ Respondé SOLO con JSON sin markdown:
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514", max_tokens: 1000,
-          system: `Sos PaceAI, coach de running argentino. Analizás fotos post-carrera (resultados, fotos de llegada, capturas de app de running). Hablás en español rioplatense, de vos a vos.`,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "image", source: { type: "base64", media_type: prPhoto.type, data: b64 } },
-              { type: "text", text: `Analizá esta imagen post-carrera${profile ? ` del corredor ${profile.name} (nivel ${profile.level}, objetivo: "${profile.goal}")` : ""}. 
-Si es una captura de resultado: extraé tiempo final, pace promedio, posición si aparece, y comparalo con el objetivo del corredor.
-Si es una foto de la carrera: comentá la postura, expresión, esfuerzo visible, y dá feedback técnico.
-Terminá siempre con: (1) un puntaje de cumplimiento 0-100%, (2) el principal logro, (3) la principal área a mejorar para la próxima.` }
-            ]
-          }]
+          system: `Sos PaceAI, coach de running argentino. Analizás fotos post-carrera. Hablás en español rioplatense, de vos a vos.`,
+          messages: [{ role: "user", content: [
+            { type: "image", source: { type: "base64", media_type: prPhoto.type, data: b64 } },
+            { type: "text", text: `Analizá esta imagen post-carrera${profile ? ` del corredor ${profile.name} (nivel ${profile.level}, objetivo: "${profile.goal}")` : ""}. Si es resultado: extraé tiempo, pace, posición. Si es foto: comentá postura y esfuerzo. Terminá con: (1) puntaje 0-100%, (2) principal logro, (3) área a mejorar.` }
+          ]}],
         }),
       });
       const d = await res.json();
-      const analysis = d.content?.[0]?.text || "No se pudo analizar la imagen.";
+      const analysis = d.content?.[0]?.text || "No se pudo analizar.";
       setPrAnalysis(analysis);
-      // Save to Firebase if logged in
       if (user) {
         setSavingPR(true);
         let photoUrl = null;
@@ -474,7 +433,6 @@ Terminá siempre con: (1) un puntaje de cumplimiento 0-100%, (2) el principal lo
     setPrLoading(false);
   };
 
-  // ── TOURISM ──
   const loadTourism = async (race) => {
     setTourRace(race); setTourAI(""); setTourLoading(true);
     try {
@@ -482,27 +440,16 @@ Terminá siempre con: (1) un puntaje de cumplimiento 0-100%, (2) el principal lo
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514", max_tokens: 1000,
-          messages: [{
-            role: "user",
-            content: `Soy corredor y voy a participar en la "${race.name}" (${race.distance}) en ${race.location}. 
-Dame una guía turística y logística completa en español rioplatense. Incluí:
-🍝 Dónde comer la noche anterior (pasta/carbo-loading, 2-3 opciones con estilo y precio aproximado)
-🏨 Hoteles o alojamientos recomendados cerca de la largada (2-3 opciones)
-🚗 Opciones de estacionamiento y transporte público para llegar
-👨‍👩‍👧 Qué pueden hacer la familia/acompañantes mientras corro
-🎭 1 actividad cultural o turística para hacer el día después de la carrera
-⚡ 3 tips logísticos clave para esta sede en particular
-Sé concreto y útil, no genérico.`
-          }]
+          messages: [{ role: "user", content: `Guía turística completa para la "${race.name}" (${race.distance}) en ${race.location}. Incluí: 🍝 dónde comer la noche anterior (2-3 opciones con precio), 🏨 hoteles recomendados cerca (2-3), 🚗 estacionamiento y transporte público, 👨‍👩‍👧 qué hacer la familia mientras corro, 🎭 actividad cultural post-carrera, ⚡ 3 tips logísticos clave. Español rioplatense, concreto.` }],
         }),
       });
       const d = await res.json();
       setTourAI(d.content?.[0]?.text || "No se pudo cargar la guía.");
-    } catch { setTourAI("Error al cargar la guía turística. Verificá tu conexión."); }
+    } catch { setTourAI("Error al cargar. Verificá tu conexión."); }
     setTourLoading(false);
   };
 
-  // ═══════════ COMPONENTS ═══════════
+  // ── COMPONENTS ──
   const RaceCard = ({ race, onClick }) => {
     const days = daysUntil(race.date);
     const dateStr = new Date(race.date).toLocaleDateString("es-AR", { day: "numeric", month: "long" });
@@ -529,38 +476,54 @@ Sé concreto y útil, no genérico.`
       <div className="pprice" style={{ color: plan.accent }}>{plan.price}</div>
       <ul className="pfeats">{plan.features.map(f => <li key={f} className="pf">{f}</li>)}</ul>
       <button className="pbtn" style={{ background: plan.popular ? plan.color : "transparent", color: plan.popular ? "#fff" : plan.color, border: `1px solid ${plan.color}` }}
-        onClick={() => { setSelPlan(plan); if (!user) setShowAuth(true); }}>
-        {plan.cta}
-      </button>
+        onClick={() => { setSelPlan(plan); if (!user) setShowAuth(true); }}>{plan.cta}</button>
     </div>
   );
 
+  // ✅ BUG FIX: onMouseDown en overlay + stopPropagation en modal
   const AuthModal = () => (
-    <div className="overlay" onClick={(e) => e.target.className === "overlay" && setShowAuth(false)}>
-      <div className="modal" style={{ position: "relative" }}>
+    <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowAuth(false); }}>
+      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
         <button className="mclose" onClick={() => setShowAuth(false)}>✕</button>
         <h2>BIENVENIDO<span style={{ color: "var(--or)" }}>.</span></h2>
-        <p>Guardá tus planes y análisis en la nube.</p>
+        <p className="modal-sub">Guardá tus planes y análisis en la nube.</p>
         <div className="mtabs">
-          <button className={`mtab ${authTab === "login" ? "act" : ""}`} onClick={() => setAuthTab("login")}>Ingresar</button>
-          <button className={`mtab ${authTab === "register" ? "act" : ""}`} onClick={() => setAuthTab("register")}>Registrarse</button>
+          <button className={`mtab ${authTab === "login" ? "act" : ""}`} onClick={() => { setAuthTab("login"); setAuthErr(""); }}>Ingresar</button>
+          <button className={`mtab ${authTab === "register" ? "act" : ""}`} onClick={() => { setAuthTab("register"); setAuthErr(""); }}>Registrarse</button>
         </div>
-        {authErr && <div className="ferr">{authErr}</div>}
-        <div className="fg"><label className="fl">Email</label>
-          <input className="fi2" type="email" placeholder="tu@email.com" value={authForm.email} onChange={e => setAuthForm({ ...authForm, email: e.target.value })} />
+        <div className="fg">
+          <label className="fl">Email</label>
+          <input
+            className="fi2"
+            type="email"
+            placeholder="tu@email.com"
+            value={authForm.email}
+            onChange={e => setAuthForm(prev => ({ ...prev, email: e.target.value }))}
+            autoComplete="email"
+          />
         </div>
-        <div className="fg"><label className="fl">Contraseña</label>
-          <input className="fi2" type="password" placeholder="Mínimo 6 caracteres" value={authForm.password} onChange={e => setAuthForm({ ...authForm, password: e.target.value })} onKeyDown={e => e.key === "Enter" && doAuth()} />
+        <div className="fg">
+          <label className="fl">Contraseña</label>
+          <input
+            className="fi2"
+            type="password"
+            placeholder="Mínimo 6 caracteres"
+            value={authForm.password}
+            onChange={e => setAuthForm(prev => ({ ...prev, password: e.target.value }))}
+            onKeyDown={e => e.key === "Enter" && doAuth()}
+            autoComplete={authTab === "login" ? "current-password" : "new-password"}
+          />
         </div>
-        <button className="btnp" style={{ width: "100%", padding: 14 }} onClick={doAuth} disabled={authLoading}>
+        <button className="btnp" style={{ width: "100%", padding: 14, marginTop: 4 }} onClick={doAuth} disabled={authLoading}>
           {authLoading ? "Cargando..." : authTab === "login" ? "Ingresar" : "Crear cuenta"}
         </button>
-        <p style={{ textAlign: "center", color: "var(--mu)", fontSize: ".78rem", marginTop: 14 }}>Los datos se guardan en Firebase (gratis)</p>
+        {authErr && <div className="ferr">{authErr}</div>}
+        <p style={{ textAlign: "center", color: "var(--mu)", fontSize: ".75rem", marginTop: 16 }}>Datos guardados en Firebase · Gratis</p>
       </div>
     </div>
   );
 
-  // ═══════════ VIEWS ═══════════
+  // ── VIEWS ──
   const renderHome = () => (
     <>
       <div className="hero">
@@ -582,7 +545,7 @@ Sé concreto y útil, no genérico.`
       </div>
       <div className="fstrip">
         <div className="fi">
-          {[["🧠","IA adaptativa","Planes que ajustan según clima, terreno y tu progreso"],["📅","Calendario real","Carreras scrapeadas de dondecorrer.com con info completa"],["📸","Post-carrera","Subí tus fotos y la IA analiza tu desempeño y resultados"],["🗺️","Guía turística","Hoteles, restaurants y actividades por sede de carrera"],["🔥","Firebase","Tus datos guardados en la nube, accesibles en cualquier dispositivo"]].map(([ic,n,d]) => (
+          {[["🧠","IA adaptativa","Planes que ajustan según clima, terreno y tu progreso"],["📅","Calendario real","Carreras de Buenos Aires con info completa"],["📸","Post-carrera","Subí tus fotos y la IA analiza tu desempeño"],["🗺️","Guía turística","Hoteles, restaurants y actividades por sede"],["🔥","Firebase","Datos guardados en la nube, gratis"]].map(([ic,n,d]) => (
             <div key={n} className="fitm"><span className="ico">{ic}</span><div className="fn">{n}</div><div className="fd">{d}</div></div>
           ))}
         </div>
@@ -601,7 +564,7 @@ Sé concreto y útil, no genérico.`
   const renderCalendar = () => (
     <div className="pw">
       <button className="back" onClick={() => setView("home")}>← Inicio</button>
-      <div className="sh" style={{ marginBottom: 28 }}><h1 className="st">CALENDARIO <span>2025</span></h1><span style={{ color: "var(--mu)", fontSize: ".82rem" }}>{RACES.length} carreras · Buenos Aires</span></div>
+      <div className="sh" style={{ marginBottom: 28 }}><h1 className="st">CALENDARIO <span>2025</span></h1></div>
       <div className="rgrid">{RACES.map(r => <RaceCard key={r.id} race={r} onClick={() => { setSelRace(r); setView("race"); }} />)}</div>
     </div>
   );
@@ -630,9 +593,9 @@ Sé concreto y útil, no genérico.`
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button className="btnp" onClick={() => genTrainPlan(race)}>🤖 Generar plan IA</button>
-          <button className="btns" onClick={() => { setView("coach"); sendMsg(`Quiero prepararme para la ${race.name} (${race.distance}) el ${new Date(race.date).toLocaleDateString("es-AR",{day:"numeric",month:"long"})}. El terreno es ${race.terrain} y el clima será ${race.weather}.`); }}>💬 Preguntar al coach</button>
+          <button className="btns" onClick={() => { setView("coach"); sendMsg(`Quiero prepararme para la ${race.name} (${race.distance}). Terreno: ${race.terrain}, clima: ${race.weather}.`); }}>💬 Preguntar al coach</button>
           <button className="btns" onClick={() => { setView("tourism"); loadTourism(race); }}>🗺️ Guía turística</button>
-          <button className="btns" onClick={() => { setView("postrace"); setSelRace(race); }}>📸 Analizar mis resultados</button>
+          <button className="btns" onClick={() => { setView("postrace"); setSelRace(race); }}>📸 Analizar resultados</button>
         </div>
       </div>
     );
@@ -640,20 +603,18 @@ Sé concreto y útil, no genérico.`
 
   const renderProfile = () => (
     <div className="ppage">
-      {user && <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-        <span className="saved-badge">✓ Sesión activa · {user.email}</span>
-      </div>}
+      {user && <div style={{ marginBottom: 16 }}><span className="saved-badge">✓ Sesión activa · {user.email}</span></div>}
       <h1 className="ptitle">TU PERFIL</h1>
       <p className="psub">La IA usa estos datos para personalizar cada plan. {user ? "Se guarda automáticamente en Firebase." : "Creá una cuenta para guardar en la nube."}</p>
-      <div className="fg"><label className="fl">Nombre</label><input className="fi2" placeholder="¿Cómo te llamás?" value={pForm.name} onChange={e => setPForm({ ...pForm, name: e.target.value })} /></div>
+      <div className="fg"><label className="fl">Nombre</label><input className="fi2" placeholder="¿Cómo te llamás?" value={pForm.name} onChange={e => setPForm(p => ({ ...p, name: e.target.value }))} /></div>
       <div className="frow">
-        <div className="fg"><label className="fl">Edad</label><input className="fi2" type="number" placeholder="35" value={pForm.age} onChange={e => setPForm({ ...pForm, age: e.target.value })} /></div>
-        <div className="fg"><label className="fl">Peso (kg)</label><input className="fi2" type="number" placeholder="72" value={pForm.weight} onChange={e => setPForm({ ...pForm, weight: e.target.value })} /></div>
+        <div className="fg"><label className="fl">Edad</label><input className="fi2" type="number" placeholder="35" value={pForm.age} onChange={e => setPForm(p => ({ ...p, age: e.target.value }))} /></div>
+        <div className="fg"><label className="fl">Peso (kg)</label><input className="fi2" type="number" placeholder="72" value={pForm.weight} onChange={e => setPForm(p => ({ ...p, weight: e.target.value }))} /></div>
       </div>
       <div className="frow">
-        <div className="fg"><label className="fl">Altura (cm)</label><input className="fi2" type="number" placeholder="175" value={pForm.height} onChange={e => setPForm({ ...pForm, height: e.target.value })} /></div>
+        <div className="fg"><label className="fl">Altura (cm)</label><input className="fi2" type="number" placeholder="175" value={pForm.height} onChange={e => setPForm(p => ({ ...p, height: e.target.value }))} /></div>
         <div className="fg"><label className="fl">Días/semana</label>
-          <select className="fi2 fsel" value={pForm.days} onChange={e => setPForm({ ...pForm, days: e.target.value })}>
+          <select className="fi2 fsel" value={pForm.days} onChange={e => setPForm(p => ({ ...p, days: e.target.value }))}>
             {["2","3","4","5","6"].map(d => <option key={d} value={d}>{d} días</option>)}
           </select>
         </div>
@@ -661,16 +622,14 @@ Sé concreto y útil, no genérico.`
       <div className="fg"><label className="fl">Nivel</label>
         <div className="lgrid">
           {[["principiante","🌱","Principiante"],["moderado","🔥","Moderado"],["avanzado","⚡","Avanzado"]].map(([id,ic,lb]) => (
-            <div key={id} className={`lopt ${pForm.level === id ? "sel" : ""}`} onClick={() => setPForm({ ...pForm, level: id })}>
+            <div key={id} className={`lopt ${pForm.level === id ? "sel" : ""}`} onClick={() => setPForm(p => ({ ...p, level: id }))}>
               <span className="lic">{ic}</span><span className="ln">{lb}</span>
             </div>
           ))}
         </div>
       </div>
-      <div className="fg"><label className="fl">Objetivo principal</label><input className="fi2" placeholder="Ej: Terminar mi primera maratón" value={pForm.goal} onChange={e => setPForm({ ...pForm, goal: e.target.value })} /></div>
-      <button className="btnp" style={{ width: "100%", padding: 14 }} onClick={saveProfile}>
-        {user ? "Guardar en Firebase →" : "Guardar perfil →"}
-      </button>
+      <div className="fg"><label className="fl">Objetivo principal</label><input className="fi2" placeholder="Ej: Terminar mi primera maratón" value={pForm.goal} onChange={e => setPForm(p => ({ ...p, goal: e.target.value }))} /></div>
+      <button className="btnp" style={{ width: "100%", padding: 14 }} onClick={saveProfile}>{user ? "Guardar en Firebase →" : "Guardar perfil →"}</button>
       {!user && <button className="btns" style={{ width: "100%", padding: 12, marginTop: 10 }} onClick={() => setShowAuth(true)}>Crear cuenta para sincronizar ☁️</button>}
     </div>
   );
@@ -688,10 +647,7 @@ Sé concreto y útil, no genérico.`
     <div className="chat">
       <div className="chatheader">
         <div className="chatava">🏃</div>
-        <div>
-          <div className="chatname">PACE<span style={{ color: "var(--or)" }}>AI</span></div>
-          <div className="chatsub">{profile ? `Entrenando a ${profile.name} · ${profile.level}` : "Coach de running · Buenos Aires"}</div>
-        </div>
+        <div><div className="chatname">PACE<span style={{ color: "var(--or)" }}>AI</span></div><div className="chatsub">{profile ? `Entrenando a ${profile.name} · ${profile.level}` : "Coach de running · Buenos Aires"}</div></div>
       </div>
       <div className="msgs">
         {msgs.map((m, i) => (
@@ -718,7 +674,7 @@ Sé concreto y útil, no genérico.`
   );
 
   const renderTraining = () => {
-    if (genPlan) return <div className="lcenter"><div className="spin"/><div className="ltxt">Generando tu plan personalizado...</div><div style={{ color: "var(--mu)", marginTop: 8, fontSize: ".82rem" }}>Analizando terreno, clima y tu perfil</div></div>;
+    if (genPlan) return <div className="lcenter"><div className="spin"/><div className="ltxt">Generando tu plan...</div></div>;
     if (!trainPlan) return <div className="tpage"><p style={{ color: "var(--mu)" }}>Seleccioná una carrera para generar tu plan.</p><button className="btnp" style={{ marginTop: 14 }} onClick={() => setView("calendar")}>Ver calendario</button></div>;
     if (trainPlan.error) return <div className="tpage"><p style={{ color: "var(--or)" }}>Error al generar el plan.</p><button className="btnp" style={{ marginTop: 14 }} onClick={() => genTrainPlan(trainPlan.race)}>Reintentar</button></div>;
     const { semanas = [], consejos_generales = [], nutricion, calzado, race } = trainPlan;
@@ -727,7 +683,8 @@ Sé concreto y útil, no genérico.`
     return (
       <div className="tpage">
         <button className="back" onClick={() => setView("race")}>← Carrera</button>
-        <div><h1 className="ttitle">PLAN DE ENTRENAMIENTO</h1><div className="trace">{race?.name} · {race?.distance} · {new Date(race?.date).toLocaleDateString("es-AR",{day:"numeric",month:"long"})}</div></div>
+        <h1 className="ttitle">PLAN DE ENTRENAMIENTO</h1>
+        <div className="trace">{race?.name} · {race?.distance}</div>
         {user && <div style={{ marginTop: 8 }}><span className="saved-badge">✓ Guardado en Firebase</span></div>}
         <div className="wtabs">{semanas.map((s, i) => <button key={i} className={`wtab ${activeWeek===i?"act":""}`} onClick={() => setActiveWeek(i)}>Sem {s.numero}</button>)}</div>
         {sem.sesiones && (
@@ -757,31 +714,16 @@ Sé concreto y útil, no genérico.`
     <div className="prpage">
       <button className="back" onClick={() => setView("home")}>← Inicio</button>
       <h1 className="ptitle">ANÁLISIS <span style={{ color: "var(--or)" }}>POST-CARRERA</span></h1>
-      <p className="psub">Subí una foto de tu resultado, captura de tu app de running, o foto de la llegada. La IA analiza tu desempeño y te da feedback personalizado.</p>
+      <p className="psub">Subí una foto de tu resultado, captura de Strava/Garmin, o foto de la llegada.</p>
       {!user && <div style={{ background: "rgba(255,69,0,.08)", border: "1px solid rgba(255,69,0,.2)", borderRadius: "8px", padding: "12px 16px", marginBottom: 18, fontSize: ".82rem", color: "var(--mu)" }}>
-        💡 <button style={{ background: "none", border: "none", color: "var(--or)", cursor: "pointer", fontWeight: 700, padding: 0 }} onClick={() => setShowAuth(true)}>Iniciá sesión</button> para guardar tus análisis automáticamente en Firebase.
+        💡 <button style={{ background: "none", border: "none", color: "var(--or)", cursor: "pointer", fontWeight: 700, padding: 0 }} onClick={() => setShowAuth(true)}>Iniciá sesión</button> para guardar tus análisis en Firebase.
       </div>}
       <input type="file" ref={fileRef} accept="image/*" style={{ display: "none" }} onChange={e => handlePhotoSelect(e.target.files[0])} />
       <div className={`dropzone ${prPhoto ? "has" : ""}`} onClick={() => fileRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); handlePhotoSelect(e.dataTransfer.files[0]); }}>
-        {prPreview ? (
-          <>
-            <img src={prPreview} alt="Preview" className="dropimg" />
-            <div style={{ marginTop: 10, fontSize: ".8rem", color: "var(--or)", fontWeight: 600 }}>📷 {prPhoto?.name} · Hacé click para cambiar</div>
-          </>
-        ) : (
-          <>
-            <span className="dropico">📸</span>
-            <div className="droptxt">Arrastrá tu foto aquí o hacé click para seleccionar</div>
-            <div style={{ fontSize: ".75rem", color: "var(--mu)", marginTop: 6 }}>JPG, PNG, WEBP · Resultado, captura de Strava/Garmin, o foto de llegada</div>
-          </>
-        )}
+        {prPreview ? (<><img src={prPreview} alt="Preview" className="dropimg" /><div style={{ marginTop: 10, fontSize: ".8rem", color: "var(--or)", fontWeight: 600 }}>📷 Hacé click para cambiar</div></>) : (<><span className="dropico">📸</span><div className="droptxt">Arrastrá tu foto aquí o hacé click para seleccionar</div><div style={{ fontSize: ".75rem", color: "var(--mu)", marginTop: 6 }}>JPG, PNG, WEBP</div></>)}
       </div>
-      {prPhoto && !prAnalysis && (
-        <button className="btnp" style={{ width: "100%", padding: 14 }} onClick={analyzeRace} disabled={prLoading}>
-          {prLoading ? "Analizando con IA..." : "🤖 Analizar con PaceAI"}
-        </button>
-      )}
-      {prLoading && <div className="lcenter" style={{ padding: "40px 0" }}><div className="spin"/><div className="ltxt" style={{ fontSize: "1rem" }}>PaceAI está analizando...</div></div>}
+      {prPhoto && !prAnalysis && <button className="btnp" style={{ width: "100%", padding: 14 }} onClick={analyzeRace} disabled={prLoading}>{prLoading ? "Analizando con IA..." : "🤖 Analizar con PaceAI"}</button>}
+      {prLoading && <div className="lcenter" style={{ padding: "40px 0" }}><div className="spin"/><div className="ltxt" style={{ fontSize: "1rem" }}>Analizando...</div></div>}
       {prAnalysis && (
         <div className="analysis">
           <h3>📊 Análisis de PaceAI</h3>
@@ -789,7 +731,7 @@ Sé concreto y útil, no genérico.`
           <p>{prAnalysis}</p>
           <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
             <button className="btnp" onClick={() => { setPrPhoto(null); setPrPreview(null); setPrAnalysis(null); }}>Analizar otra foto</button>
-            <button className="btns" onClick={() => sendMsg(`Acabo de analizar mi carrera. El análisis dice: "${prAnalysis.slice(0,200)}..." ¿Qué me recomendás para mejorar?`)}>Hablar con el coach →</button>
+            <button className="btns" onClick={() => sendMsg(`Acabo de analizar mi carrera: "${prAnalysis.slice(0,200)}..." ¿Qué me recomendás para mejorar?`)}>Hablar con el coach →</button>
           </div>
         </div>
       )}
@@ -798,10 +740,7 @@ Sé concreto y útil, no genérico.`
           <h3 style={{ fontFamily: "var(--fd)", fontSize: "1.3rem", marginBottom: 12 }}>HISTORIAL <span style={{ color: "var(--or)" }}>EN FIREBASE</span></h3>
           {prHistory.map((h, i) => (
             <div key={i} className="hist-item">
-              <div>
-                <div style={{ fontSize: ".8rem", color: "var(--or)", fontWeight: 600, marginBottom: 3 }}>{h.race || "Sin carrera"}</div>
-                <div className="hist-preview">{h.analysis?.slice(0, 120)}...</div>
-              </div>
+              <div><div style={{ fontSize: ".8rem", color: "var(--or)", fontWeight: 600, marginBottom: 3 }}>{h.race || "Sin carrera"}</div><div className="hist-preview">{h.analysis?.slice(0, 120)}...</div></div>
               <div className="hist-date">{h.createdAt ? new Date(h.createdAt).toLocaleDateString("es-AR") : ""}</div>
             </div>
           ))}
@@ -814,48 +753,25 @@ Sé concreto y útil, no genérico.`
     <div className="tourpage">
       <button className="back" onClick={() => setView("home")}>← Inicio</button>
       <h1 style={{ fontFamily: "var(--fd)", fontSize: "2rem", marginBottom: 6 }}>GUÍA <span style={{ color: "var(--or)" }}>TURÍSTICA</span></h1>
-      <p style={{ color: "var(--mu)", fontSize: ".88rem", marginBottom: 24 }}>Hoteles, restaurantes, logística y actividades cerca de cada carrera.</p>
+      <p style={{ color: "var(--mu)", fontSize: ".88rem", marginBottom: 24 }}>Hoteles, restaurantes y logística cerca de cada carrera.</p>
       <div className="tour-select">
         <div className="tour-label">Seleccioná la carrera</div>
         <div className="race-pills">
-          {RACES.map(r => (
-            <button key={r.id} className={`rpill ${tourRace?.id === r.id ? "sel" : ""}`} onClick={() => loadTourism(r)}>
-              {r.image} {r.name}
-            </button>
-          ))}
+          {RACES.map(r => <button key={r.id} className={`rpill ${tourRace?.id === r.id ? "sel" : ""}`} onClick={() => loadTourism(r)}>{r.image} {r.name}</button>)}
         </div>
       </div>
       {tourRace && (
         <>
           <div className="tour-cards">
-            {[
-              ["📍","Zona de largada", tourRace.tourism.zone],
-              ["🏨","Hoteles recomendados", tourRace.tourism.hotel_zone],
-              ["🚗","Estacionamiento", tourRace.tourism.parking],
-              ["🚇","Transporte público", tourRace.tourism.metro],
-              ["🎭","Para ver cerca", tourRace.tourism.cultural],
-            ].map(([ic,n,d]) => (
+            {[["📍","Zona de largada",tourRace.tourism.zone],["🏨","Hoteles",tourRace.tourism.hotel_zone],["🚗","Estacionamiento",tourRace.tourism.parking],["🚇","Transporte",tourRace.tourism.metro],["🎭","Para ver cerca",tourRace.tourism.cultural]].map(([ic,n,d]) => (
               <div key={n} className="tc"><div className="tci">{ic}</div><div className="tcn">{n}</div><div className="tcd">{d}</div></div>
             ))}
           </div>
-          {tourLoading && <div className="lcenter" style={{ padding: "40px 0" }}><div className="spin"/><div className="ltxt" style={{ fontSize: "1rem" }}>PaceAI está generando la guía completa...</div></div>}
-          {tourAI && (
-            <div className="ai-tour">
-              <h3>🤖 Guía completa de PaceAI</h3>
-              <p>{tourAI}</p>
-              <button className="btns" style={{ marginTop: 16 }} onClick={() => { setView("coach"); sendMsg(`Necesito más info turística y logística para la ${tourRace.name}. Especialmente para llevar a mi familia.`); }}>
-                Hacer más preguntas →
-              </button>
-            </div>
-          )}
+          {tourLoading && <div className="lcenter" style={{ padding: "40px 0" }}><div className="spin"/><div className="ltxt" style={{ fontSize: "1rem" }}>Generando guía completa...</div></div>}
+          {tourAI && <div className="ai-tour"><h3>🤖 Guía completa de PaceAI</h3><p>{tourAI}</p><button className="btns" style={{ marginTop: 16 }} onClick={() => { setView("coach"); sendMsg(`Necesito más info logística para la ${tourRace.name}.`); }}>Hacer más preguntas →</button></div>}
         </>
       )}
-      {!tourRace && (
-        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--mu)" }}>
-          <div style={{ fontSize: "2rem", marginBottom: 10 }}>🗺️</div>
-          <div>Seleccioná una carrera arriba para ver su guía turística</div>
-        </div>
-      )}
+      {!tourRace && <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--mu)" }}><div style={{ fontSize: "2rem", marginBottom: 10 }}>🗺️</div><div>Seleccioná una carrera arriba</div></div>}
     </div>
   );
 
@@ -874,10 +790,7 @@ Sé concreto y útil, no genérico.`
         </div>
         <div className="nav-r">
           {user ? (
-            <>
-              <span style={{ fontSize: ".75rem", color: "var(--mu)", display: "none" }}>{user.email}</span>
-              <button className="ava" onClick={() => setView("profile")} title={user.email}>{user.email[0].toUpperCase()}</button>
-            </>
+            <button className="ava" onClick={() => setView("profile")} title={user.email}>{user.email[0].toUpperCase()}</button>
           ) : (
             <>
               <button className="nav-btn" style={{ background: "transparent", color: "var(--or)", border: "1px solid var(--or)" }} onClick={() => setShowAuth(true)}>Ingresar</button>
