@@ -279,6 +279,118 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 @media(max-width:600px){.frow{grid-template-columns:1fr}.nav-links{display:none}.srow{grid-template-columns:80px 1fr;grid-template-rows:auto auto}.sdist{display:none}}
 `;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FIX: AuthModal, RaceCard y PlanCard definidos FUERA de RunnerAI
+// para evitar re-mount en cada render (bug del cursor que desaparece)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function AuthModal({ authTab, setAuthTab, authForm, setAuthForm, authLoading, authErr, doAuth, onClose }) {
+  return (
+    <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+        <button className="mclose" onClick={onClose}>✕</button>
+        <h2>BIENVENIDO<span style={{ color: "var(--or)" }}>.</span></h2>
+        <p className="modal-sub">Guardá tus planes y análisis en la nube.</p>
+        <div className="mtabs">
+          <button
+            className={`mtab ${authTab === "login" ? "act" : ""}`}
+            onClick={() => setAuthTab("login")}
+          >
+            Ingresar
+          </button>
+          <button
+            className={`mtab ${authTab === "register" ? "act" : ""}`}
+            onClick={() => setAuthTab("register")}
+          >
+            Registrarse
+          </button>
+        </div>
+        <div className="fg">
+          <label className="fl">Email</label>
+          <input
+            className="fi2"
+            type="email"
+            placeholder="tu@email.com"
+            value={authForm.email}
+            onChange={e => setAuthForm(prev => ({ ...prev, email: e.target.value }))}
+            autoComplete="email"
+            autoFocus
+          />
+        </div>
+        <div className="fg">
+          <label className="fl">Contraseña</label>
+          <input
+            className="fi2"
+            type="password"
+            placeholder="Mínimo 6 caracteres"
+            value={authForm.password}
+            onChange={e => setAuthForm(prev => ({ ...prev, password: e.target.value }))}
+            onKeyDown={e => e.key === "Enter" && doAuth()}
+            autoComplete={authTab === "login" ? "current-password" : "new-password"}
+          />
+        </div>
+        <button
+          className="btnp"
+          style={{ width: "100%", padding: 14, marginTop: 4 }}
+          onClick={doAuth}
+          disabled={authLoading}
+        >
+          {authLoading ? "Cargando..." : authTab === "login" ? "Ingresar" : "Crear cuenta"}
+        </button>
+        {authErr && <div className="ferr">{authErr}</div>}
+        <p style={{ textAlign: "center", color: "var(--mu)", fontSize: ".75rem", marginTop: 16 }}>
+          Datos guardados en Firebase · Gratis
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function RaceCard({ race, onClick }) {
+  const days = daysUntil(race.date);
+  const dateStr = new Date(race.date).toLocaleDateString("es-AR", { day: "numeric", month: "long" });
+  return (
+    <div className="rcard" onClick={onClick}>
+      <div className="rch">
+        <div className="remi">{race.image}</div>
+        <div>
+          <div className="rn">{race.name}</div>
+          <div className="rd">{race.distance}</div>
+        </div>
+      </div>
+      <div className="rcb">
+        <div className="rm"><span>📅</span>{dateStr}</div>
+        <div className="rm"><span>📍</span>{race.location}</div>
+        <div className="rm"><span>🏔️</span>{race.terrain} · {race.weather}</div>
+      </div>
+      <div className="rf">
+        <span className="dbadge" style={{ background: diffColor[race.difficulty] + "22", color: diffColor[race.difficulty] }}>{race.difficulty}</span>
+        <span className="daybadge">{days > 0 ? `en ${days} días` : "¡Ya!"}</span>
+      </div>
+    </div>
+  );
+}
+
+function PlanCard({ plan, onSelect }) {
+  return (
+    <div className={`pcard ${plan.popular ? "pop" : ""}`}>
+      {plan.popular && <div className="pbadge">⭐ MÁS ELEGIDO</div>}
+      <div className="pname" style={{ color: plan.color }}>{plan.name}</div>
+      <div className="pprice" style={{ color: plan.accent }}>{plan.price}</div>
+      <ul className="pfeats">{plan.features.map(f => <li key={f} className="pf">{f}</li>)}</ul>
+      <button
+        className="pbtn"
+        style={{ background: plan.popular ? plan.color : "transparent", color: plan.popular ? "#fff" : plan.color, border: `1px solid ${plan.color}` }}
+        onClick={() => onSelect(plan)}
+      >
+        {plan.cta}
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function RunnerAI() {
   const [view, setView] = useState("home");
   const [user, setUser] = useState(null);
@@ -321,7 +433,6 @@ export default function RunnerAI() {
     })();
   }, [user]);
 
-  // ── AUTH ──
   const doAuth = async () => {
     if (!authForm.email || !authForm.password) {
       setAuthErr("Completá email y contraseña.");
@@ -363,7 +474,7 @@ export default function RunnerAI() {
     try {
       const res = await fetch("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({  system: coachPrompt(profile), messages: newMsgs }),
+        body: JSON.stringify({ system: coachPrompt(profile), messages: newMsgs }),
       });
       const d = await res.json();
       setMsgs(p => [...p, { role: "assistant", content: d.content?.[0]?.text || "Error al responder." }]);
@@ -377,7 +488,6 @@ export default function RunnerAI() {
       const res = await fetch("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          
           messages: [{ role: "user", content: `Generá plan de entrenamiento para "${race.name}" (${race.distance}), fecha ${race.date}, terreno ${race.terrain}, clima ${race.weather}.${profile ? ` Perfil: nivel ${profile.level}, ${profile.age} años, ${profile.days} días/semana.` : ""}
 Respondé SOLO con JSON sin markdown:
 {"semanas":[{"numero":1,"objetivo":"string","sesiones":[{"dia":"Lunes","tipo":"Recuperación","distancia":"5K","ritmo":"6:30/km","descripcion":"string"}],"consejo":"string"}],"consejos_generales":["string"],"nutricion":"string","calzado":"string"}
@@ -437,7 +547,6 @@ Respondé SOLO con JSON sin markdown:
       const res = await fetch("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          
           messages: [{ role: "user", content: `Guía turística completa para la "${race.name}" (${race.distance}) en ${race.location}. Incluí: 🍝 dónde comer la noche anterior (2-3 opciones con precio), 🏨 hoteles recomendados cerca (2-3), 🚗 estacionamiento y transporte público, 👨‍👩‍👧 qué hacer la familia mientras corro, 🎭 actividad cultural post-carrera, ⚡ 3 tips logísticos clave. Español rioplatense, concreto.` }],
         }),
       });
@@ -446,80 +555,6 @@ Respondé SOLO con JSON sin markdown:
     } catch { setTourAI("Error al cargar. Verificá tu conexión."); }
     setTourLoading(false);
   };
-
-  // ── COMPONENTS ──
-  const RaceCard = ({ race, onClick }) => {
-    const days = daysUntil(race.date);
-    const dateStr = new Date(race.date).toLocaleDateString("es-AR", { day: "numeric", month: "long" });
-    return (
-      <div className="rcard" onClick={onClick}>
-        <div className="rch"><div className="remi">{race.image}</div><div><div className="rn">{race.name}</div><div className="rd">{race.distance}</div></div></div>
-        <div className="rcb">
-          <div className="rm"><span>📅</span>{dateStr}</div>
-          <div className="rm"><span>📍</span>{race.location}</div>
-          <div className="rm"><span>🏔️</span>{race.terrain} · {race.weather}</div>
-        </div>
-        <div className="rf">
-          <span className="dbadge" style={{ background: diffColor[race.difficulty] + "22", color: diffColor[race.difficulty] }}>{race.difficulty}</span>
-          <span className="daybadge">{days > 0 ? `en ${days} días` : "¡Ya!"}</span>
-        </div>
-      </div>
-    );
-  };
-
-  const PlanCard = ({ plan }) => (
-    <div className={`pcard ${plan.popular ? "pop" : ""}`}>
-      {plan.popular && <div className="pbadge">⭐ MÁS ELEGIDO</div>}
-      <div className="pname" style={{ color: plan.color }}>{plan.name}</div>
-      <div className="pprice" style={{ color: plan.accent }}>{plan.price}</div>
-      <ul className="pfeats">{plan.features.map(f => <li key={f} className="pf">{f}</li>)}</ul>
-      <button className="pbtn" style={{ background: plan.popular ? plan.color : "transparent", color: plan.popular ? "#fff" : plan.color, border: `1px solid ${plan.color}` }}
-        onClick={() => { setSelPlan(plan); if (!user) setShowAuth(true); }}>{plan.cta}</button>
-    </div>
-  );
-
-  // ✅ BUG FIX: onMouseDown en overlay + stopPropagation en modal
-  const AuthModal = () => (
-    <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowAuth(false); }}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <button className="mclose" onClick={() => setShowAuth(false)}>✕</button>
-        <h2>BIENVENIDO<span style={{ color: "var(--or)" }}>.</span></h2>
-        <p className="modal-sub">Guardá tus planes y análisis en la nube.</p>
-        <div className="mtabs">
-          <button className={`mtab ${authTab === "login" ? "act" : ""}`} onClick={() => { setAuthTab("login"); setAuthErr(""); }}>Ingresar</button>
-          <button className={`mtab ${authTab === "register" ? "act" : ""}`} onClick={() => { setAuthTab("register"); setAuthErr(""); }}>Registrarse</button>
-        </div>
-        <div className="fg">
-          <label className="fl">Email</label>
-          <input
-            className="fi2"
-            type="email"
-            placeholder="tu@email.com"
-            value={authForm.email}
-            onChange={e => setAuthForm(prev => ({ ...prev, email: e.target.value }))}
-            autoComplete="email"
-          />
-        </div>
-        <div className="fg">
-          <label className="fl">Contraseña</label>
-          <input
-            className="fi2"
-            type="password"
-            placeholder="Mínimo 6 caracteres"
-            value={authForm.password}
-            onChange={e => setAuthForm(prev => ({ ...prev, password: e.target.value }))}
-            onKeyDown={e => e.key === "Enter" && doAuth()}
-            autoComplete={authTab === "login" ? "current-password" : "new-password"}
-          />
-        </div>
-        <button className="btnp" style={{ width: "100%", padding: 14, marginTop: 4 }} onClick={doAuth} disabled={authLoading}>
-          {authLoading ? "Cargando..." : authTab === "login" ? "Ingresar" : "Crear cuenta"}
-        </button>
-        {authErr && <div className="ferr">{authErr}</div>}
-        <p style={{ textAlign: "center", color: "var(--mu)", fontSize: ".75rem", marginTop: 16 }}>Datos guardados en Firebase · Gratis</p>
-      </div>
-    </div>
-  );
 
   // ── VIEWS ──
   const renderHome = () => (
@@ -554,7 +589,7 @@ Respondé SOLO con JSON sin markdown:
       </div>
       <div className="sec" style={{ paddingTop: 0 }}>
         <div className="sh"><h2 className="st">ELEGÍ TU <span>PLAN</span></h2></div>
-        <div className="pgrid">{PLANS.map(p => <PlanCard key={p.id} plan={p} />)}</div>
+        <div className="pgrid">{PLANS.map(p => <PlanCard key={p.id} plan={p} onSelect={(plan) => { setSelPlan(plan); if (!user) setShowAuth(true); }} />)}</div>
       </div>
     </>
   );
@@ -637,7 +672,7 @@ Respondé SOLO con JSON sin markdown:
       <button className="back" onClick={() => setView("home")}>← Inicio</button>
       <div className="sh" style={{ marginBottom: 10 }}><h1 className="st">ELEGÍ TU <span>PLAN</span></h1></div>
       <p style={{ color: "var(--mu)", marginBottom: 36, fontSize: ".92rem" }}>Tres niveles de coaching. Desde tu primera carrera hasta las métricas de élite.</p>
-      <div className="pgrid">{PLANS.map(p => <PlanCard key={p.id} plan={p} />)}</div>
+      <div className="pgrid">{PLANS.map(p => <PlanCard key={p.id} plan={p} onSelect={(plan) => { setSelPlan(plan); if (!user) setShowAuth(true); }} />)}</div>
     </div>
   );
 
@@ -778,7 +813,18 @@ Respondé SOLO con JSON sin markdown:
   return (
     <div className="app">
       <style>{CSS}</style>
-      {showAuth && <AuthModal />}
+      {showAuth && (
+        <AuthModal
+          authTab={authTab}
+          setAuthTab={(tab) => { setAuthTab(tab); setAuthErr(""); }}
+          authForm={authForm}
+          setAuthForm={setAuthForm}
+          authLoading={authLoading}
+          authErr={authErr}
+          doAuth={doAuth}
+          onClose={() => setShowAuth(false)}
+        />
+      )}
       <nav className="nav">
         <div className="logo" onClick={() => setView("home")}>PACE<span>AI</span></div>
         <div className="nav-links">
