@@ -16,6 +16,35 @@ const fbRegister = async (email, password) => {
   return { uid: d.localId, email: d.email, token: d.idToken };
 };
 
+/**
+ * Pasos para arreglar, guardar en git, hacer commit y correr en Vercel:
+ *
+ * 1. Arregla tu código si tienes errores (ejemplo: revisa las claves, URLs y el manejo de errores como ya te mostré arriba).
+ *
+ * 2. Guarda los cambios localmente en tu proyecto:
+ *    Si editaste este archivo y corregiste errores, guarda el archivo (Ctrl+S o Cmd+S).
+ * 
+ * 3. En una terminal, ejecuta los siguientes comandos dentro de la carpeta de tu proyecto:
+ * 
+ *    git add .
+ *    git commit -m "Arreglo errores de conexión o manejo de API"
+ *    git push
+ *
+ * 4. Si ya tienes tu proyecto conectado a Vercel (https://vercel.com), Vercel desplegará automáticamente al hacer push.
+ *    Si aún no lo hiciste:
+ *      - Instala Vercel CLI si no la tienes: npm i -g vercel
+ *      - Ejecuta: vercel
+ *      - Sigue las instrucciones para conectar el proyecto.
+ *
+ * 5. Una vez terminado el deploy, recibirás una URL de preview en la terminal o en el dashboard de Vercel.
+ *
+ * Notas:
+ * - Si usas claves/patrones secretos, confirma que estén en variables de entorno (Vercel > Project Settings > Environment Variables).
+ * - Chequea la pestaña "Deployments" en Vercel para ver logs y errores si algo falla en producción.
+ */
+
+
+
 const fbLogin = async (email, password) => {
   const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FB.apiKey}`, {
     method: "POST", headers: { "Content-Type": "application/json" },
