@@ -525,12 +525,34 @@ Respondé SOLO con JSON sin markdown:
         }),
       });
       const d = await res.json();
-      const text = d.content?.[0]?.text || "{}";
-      const plan = JSON.parse(text.replace(/```json|```/g, "").trim());
+
+      // Normalizar texto de respuesta (soporta distintos formatos de API/modelo)
+      let text = d?.content?.[0]?.text || d?.choices?.[0]?.message?.content || JSON.stringify(d || {});
+      text = String(text || "").replace(/```(?:json)?\n?|```/g, "").trim();
+
+      // Intentar extraer el primer bloque JSON (objeto o array)
+      let jsonText = null;
+      const objMatch = text.match(/\{[\s\S]*\}/);
+      const arrMatch = text.match(/\[[\s\S]*\]/);
+      if (objMatch) jsonText = objMatch[0];
+      else if (arrMatch) jsonText = arrMatch[0];
+      else jsonText = text;
+
+      let plan;
+      try {
+        plan = JSON.parse(jsonText);
+      } catch (e) {
+        console.error("[genTrainPlan] JSON parse failed:", e, "response text:", text);
+        throw e;
+      }
+
       const full = { ...plan, race };
       setTrainPlan(full);
       if (user) await fbSet(`plans_${user.uid}`, `${race.id}_${Date.now()}`, { race: JSON.stringify(race), plan: JSON.stringify(plan), createdAt: new Date().toISOString() }, user.token).catch(() => null);
-    } catch { setTrainPlan({ error: true, race }); }
+    } catch (err) {
+      console.error('[genTrainPlan] error:', err);
+      setTrainPlan({ error: true, race });
+    }
     setGenPlan(false);
   };
 
