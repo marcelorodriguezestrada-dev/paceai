@@ -517,6 +517,7 @@ export default function RunnerAI() {
       const res = await fetch("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          max_tokens: 4096,
           messages: [{ role: "user", content: `Generá plan de entrenamiento para "${race.name}" (${race.distance}), fecha ${race.date}, terreno ${race.terrain}, clima ${race.weather}.${profile ? ` Perfil: nivel ${profile.level}, ${profile.age} años, ${profile.days} días/semana.` : ""}
 Respondé SOLO con JSON sin markdown:
 {"semanas":[{"numero":1,"objetivo":"string","sesiones":[{"dia":"Lunes","tipo":"Recuperación","distancia":"5K","ritmo":"6:30/km","descripcion":"string"}],"consejo":"string"}],"consejos_generales":["string"],"nutricion":"string","calzado":"string"}
