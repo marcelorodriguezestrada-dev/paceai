@@ -124,9 +124,9 @@ const RACES = [
 ];
 
 const PLANS = [
-  { id: "basico", name: "BÁSICO", price: "Gratis", color: "#555", accent: "#999", features: ["Hasta 3 carreras registradas", "1 mes de plan de entrenamiento", "Resumen semanal de actividades", "Calendario de carreras BA", "Acceso comunidad básica"], cta: "Comenzar gratis" },
-  { id: "ilimitado", name: "ILIMITADO", price: "$4.990/mes", color: "#FF4500", accent: "#FF6B35", features: ["Carreras ilimitadas", "Coaching en nutrición y alimentación", "Gestión del esfuerzo por etapas", "Análisis post-carrera con fotos", "Guía turística por sede de carrera", "Chat con IA sin límites"], cta: "Activar plan", popular: true },
-  { id: "experto", name: "EXPERTO", price: "$9.990/mes", color: "#FFD700", accent: "#FFF176", features: ["Todo lo anterior", "Métricas avanzadas: VO2Max, lactato", "Planes por ritmo (pace) personalizado", "Análisis biomecánico por video", "Sesiones 1:1 con coach humano", "Acceso a biblioteca de corredores élite"], cta: "Quiero optimizar" },
+  { id: "basico", name: "BÁSICO", price: "Gratis", amount: 0, color: "#555", accent: "#999", features: ["Hasta 3 carreras registradas", "1 mes de plan de entrenamiento", "Resumen semanal de actividades", "Calendario de carreras BA", "Acceso comunidad básica"], cta: "Comenzar gratis" },
+  { id: "ilimitado", name: "ILIMITADO", price: "$4.990/mes", amount: 4990, color: "#FF4500", accent: "#FF6B35", features: ["Carreras ilimitadas", "Coaching en nutrición y alimentación", "Gestión del esfuerzo por etapas", "Análisis post-carrera con fotos", "Guía turística por sede de carrera", "Chat con IA sin límites"], cta: "Activar plan", popular: true },
+  { id: "experto", name: "EXPERTO", price: "$9.990/mes", amount: 9990, color: "#FFD700", accent: "#FFF176", features: ["Todo lo anterior", "Métricas avanzadas: VO2Max, lactato", "Planes por ritmo (pace) personalizado", "Análisis biomecánico por video", "Sesiones 1:1 con coach humano", "Acceso a biblioteca de corredores élite"], cta: "Quiero optimizar" },
 ];
 
 const diffColor = { "fácil": "#4CAF50", "moderado": "#FF9800", "avanzado": "#FF4500" };
@@ -427,6 +427,9 @@ export default function RunnerAI() {
   const [pForm, setPForm] = useState({ name: "", age: "", weight: "", height: "", level: "principiante", goal: "", days: "4" });
   const [selRace, setSelRace] = useState(null);
   const [selPlan, setSelPlan] = useState(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+  const [paymentSuccess, setPaymentSuccess] = useState("");
   const [msgs, setMsgs] = useState([{ role: "assistant", content: "¡Hola! Soy PaceAI 🏃 Tu coach personal para las carreras de Buenos Aires. ¿Sobre qué querés charlar? Puedo armarte un plan, hablarte de nutrición o prepararte para tu próxima competencia." }]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -453,6 +456,15 @@ export default function RunnerAI() {
   useEffect(() => { chatEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    if (payment === "success") setPaymentSuccess("Pago aprobado. Gracias por contratar tu plan.");
+    else if (payment === "failure") setPaymentError("Pago rechazado o cancelado. Intentá de nuevo.");
+    else if (payment === "pending") setPaymentSuccess("Pago pendiente. Verificá tu medio de pago.");
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
     (async () => {
       const p = await fbGet("users", user.uid, user.token).catch(() => null);
@@ -476,6 +488,9 @@ export default function RunnerAI() {
       setUser(u);
       setShowAuth(false);
       setAuthForm({ email: "", password: "" });
+      if (selPlan && selPlan.id !== "basico") {
+        await buyPlan(selPlan);
+      }
     } catch (e) {
       const msg = e.message
         .replace("EMAIL_EXISTS", "Este email ya está registrado. Probá ingresar.")
@@ -493,6 +508,46 @@ export default function RunnerAI() {
     setProfile(pForm);
     if (user) await fbSet("users", user.uid, pForm, user.token).catch(() => null);
     setView("home");
+  };
+
+  const buyPlan = async (plan) => {
+    if (!plan) return;
+    setPaymentError("");
+    setPaymentSuccess("");
+    setPaymentLoading(true);
+    try {
+      const res = await fetch("/api/mercadopago", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId: plan.id,
+          planName: plan.name,
+          price: plan.amount,
+          email: user?.email,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo iniciar el pago.");
+      if (!data.init_point) throw new Error("No se recibió init_point de Mercado Pago.");
+      window.location.href = data.init_point;
+    } catch (err) {
+      console.error("[buyPlan]", err);
+      setPaymentError(err.message || "No se pudo iniciar el pago.");
+    }
+    setPaymentLoading(false);
+  };
+
+  const handlePlanSelect = async (plan) => {
+    setSelPlan(plan);
+    if (plan.id === "basico") {
+      setPaymentSuccess("Seleccionaste el plan gratis. ¡A disfrutar!");
+      return setView("plans");
+    }
+    if (!user) {
+      setShowAuth(true);
+      return;
+    }
+    await buyPlan(plan);
   };
 
   const sendMsg = async (txt) => {
@@ -641,7 +696,7 @@ Respondé SOLO con JSON sin markdown:
       </div>
       <div className="sec" style={{ paddingTop: 0 }}>
         <div className="sh"><h2 className="st">ELEGÍ TU <span>PLAN</span></h2></div>
-        <div className="pgrid">{PLANS.map(p => <PlanCard key={p.id} plan={p} onSelect={(plan) => { setSelPlan(plan); if (!user) setShowAuth(true); }} />)}</div>
+        <div className="pgrid">{PLANS.map(p => <PlanCard key={p.id} plan={p} onSelect={handlePlanSelect} />)}</div>
       </div>
     </>
   );
@@ -724,7 +779,10 @@ Respondé SOLO con JSON sin markdown:
       <button className="back" onClick={() => setView("home")}>← Inicio</button>
       <div className="sh" style={{ marginBottom: 10 }}><h1 className="st">ELEGÍ TU <span>PLAN</span></h1></div>
       <p style={{ color: "var(--mu)", marginBottom: 36, fontSize: ".92rem" }}>Tres niveles de coaching. Desde tu primera carrera hasta las métricas de élite.</p>
-      <div className="pgrid">{PLANS.map(p => <PlanCard key={p.id} plan={p} onSelect={(plan) => { setSelPlan(plan); if (!user) setShowAuth(true); }} />)}</div>
+<div className="pgrid">{PLANS.map(p => <PlanCard key={p.id} plan={p} onSelect={handlePlanSelect} />)}</div>
+      {paymentError && <div className="ferr" style={{ marginTop: 18 }}>{paymentError}</div>}
+      {paymentSuccess && <div className="saved-badge" style={{ marginTop: 18 }}>{paymentSuccess}</div>}
+      {paymentLoading && <div style={{ marginTop: 18, color: "var(--tx)" }}>Redirigiendo a Mercado Pago...</div>}
     </div>
   );
 
