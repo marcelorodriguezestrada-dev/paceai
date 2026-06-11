@@ -432,6 +432,8 @@ export default function RunnerAI() {
   const [paymentSuccess, setPaymentSuccess] = useState("");
   const [activeSubscription, setActiveSubscription] = useState(null);
   const [subscriptions, setSubscriptions] = useState([]);
+  const [plans, setPlans] = useState([]);
+  const [autoGenerateAfterAuth, setAutoGenerateAfterAuth] = useState(false);
   const [paymentPendingData, setPaymentPendingData] = useState(null);
   const [msgs, setMsgs] = useState([{ role: "assistant", content: "¡Hola! Soy PaceAI 🏃 Tu coach personal para las carreras de Buenos Aires. ¿Sobre qué querés charlar? Puedo armarte un plan, hablarte de nutrición o prepararte para tu próxima competencia." }]);
   const [chatInput, setChatInput] = useState("");
@@ -497,12 +499,14 @@ export default function RunnerAI() {
         setProfile(p); setPForm(p);
         if (typeof window !== "undefined") window.localStorage.setItem("paceai_profile", JSON.stringify(p));
       }
-      const analyses = await fbList(`analyses_${user.uid}`, user.token).catch(() => []);
-      setPrHistory(analyses.reverse().slice(0, 5));
-      const subs = await fbList(`subscriptions_${user.uid}`, user.token).catch(() => []);
-      const orderedSubs = subs.reverse();
-      setSubscriptions(orderedSubs);
-      setActiveSubscription(orderedSubs.find(s => s.status === "active") || null);
+        const analyses = await fbList(`analyses_${user.uid}`, user.token).catch(() => []);
+        setPrHistory(analyses.reverse().slice(0, 5));
+        const subs = await fbList(`subscriptions_${user.uid}`, user.token).catch(() => []);
+        const orderedSubs = subs.reverse();
+        setSubscriptions(orderedSubs);
+        setActiveSubscription(orderedSubs.find(s => s.status === "active") || null);
+        const savedPlans = await fbList(`plans_${user.uid}`, user.token).catch(() => []);
+        setPlans(savedPlans.reverse());
     })();
   }, [user]);
 
@@ -523,6 +527,11 @@ export default function RunnerAI() {
       setAuthForm({ email: "", password: "" });
       if (selPlan && selPlan.id !== "basico") {
         await buyPlan(selPlan);
+      }
+      // If user requested generation before auth, continue now
+      if (autoGenerateAfterAuth && selRace) {
+        setAutoGenerateAfterAuth(false);
+        await genTrainPlan(selRace);
       }
     } catch (e) {
       const msg = e.message
@@ -636,6 +645,24 @@ export default function RunnerAI() {
       return;
     }
     await buyPlan(plan);
+  };
+
+  const handleGenerateClick = (race) => {
+    // Require login to generate & save plans
+    if (!user) {
+      setSelRace(race);
+      setAutoGenerateAfterAuth(true);
+      setShowAuth(true);
+      return;
+    }
+    // Enforce freemium limit: 3 plans gratis
+    const saved = plans || [];
+    if (!activeSubscription && saved.length >= 3) {
+      setPaymentError("Has alcanzado 3 planes gratis. Activá ILIMITADO para generar más.");
+      setView("plans");
+      return;
+    }
+    genTrainPlan(race);
   };
 
   const sendMsg = async (txt) => {
@@ -820,7 +847,7 @@ Respondé SOLO con JSON sin markdown:
           <div style={{ fontSize: ".88rem" }}>{race.prize}</div>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button className="btnp" onClick={() => genTrainPlan(race)}>🤖 Generar plan IA</button>
+          <button className="btnp" onClick={() => handleGenerateClick(race)}>🤖 Generar plan IA</button>
           <button className="btns" onClick={() => { setView("coach"); sendMsg(`Quiero prepararme para la ${race.name} (${race.distance}). Terreno: ${race.terrain}, clima: ${race.weather}.`); }}>💬 Preguntar al coach</button>
           <button className="btns" onClick={() => { setView("tourism"); loadTourism(race); }}>🗺️ Guía turística</button>
           <button className="btns" onClick={() => { setView("postrace"); setSelRace(race); }}>📸 Analizar resultados</button>
@@ -862,6 +889,11 @@ Respondé SOLO con JSON sin markdown:
           </div>
         </div>
       )}
+      {user && (
+        <div style={{ marginTop: 12 }}>
+          <button className="btns" onClick={() => setView("myraces")}>Mis Carreras ({plans.length || 0} guardadas)</button>
+        </div>
+      )}
       <div className="fg"><label className="fl">Nombre</label><input className="fi2" placeholder="¿Cómo te llamás?" value={pForm.name} onChange={e => setPForm(p => ({ ...p, name: e.target.value }))} /></div>
       <div className="frow">
         <div className="fg"><label className="fl">Edad</label><input className="fi2" type="number" placeholder="35" value={pForm.age} onChange={e => setPForm(p => ({ ...p, age: e.target.value }))} /></div>
@@ -899,6 +931,30 @@ Respondé SOLO con JSON sin markdown:
       {paymentError && <div className="ferr" style={{ marginTop: 18 }}>{paymentError}</div>}
       {paymentSuccess && <div className="saved-badge" style={{ marginTop: 18 }}>{paymentSuccess}</div>}
       {paymentLoading && <div style={{ marginTop: 18, color: "var(--tx)" }}>Redirigiendo a Mercado Pago...</div>}
+    </div>
+  );
+
+  const renderMyRaces = () => (
+    <div className="pw">
+      <button className="back" onClick={() => setView("profile")}>← Perfil</button>
+      <div className="sh" style={{ marginBottom: 10 }}><h1 className="st">MIS <span>CARRERAS</span></h1></div>
+      <p style={{ color: "var(--mu)", marginBottom: 12 }}>Planes generados por la IA y guardados en tu cuenta.</p>
+      {plans.length === 0 && <div style={{ color: "var(--mu)" }}>No tenés planes guardados aún.</div>}
+      <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+        {plans.map(p => (
+          <div key={p.id} style={{ background: "var(--bg2)", border: "1px solid var(--bd)", borderRadius: 12, padding: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontWeight: 800 }}>{p.race?.name || "Carrera"}</div>
+                <div style={{ color: "var(--mu)", fontSize: ".9rem" }}>{p.race?.distance || ""} · {new Date(p.createdAt || Date.now()).toLocaleString()}</div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btns" onClick={() => { setTrainPlan({ ... (p.plan || {}), race: p.race }); setView("training"); }}>Abrir plan</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 
@@ -1034,7 +1090,7 @@ Respondé SOLO con JSON sin markdown:
     </div>
   );
 
-  const VIEWS = { home: renderHome, calendar: renderCalendar, race: renderRace, profile: renderProfile, plans: renderPlans, coach: renderCoach, training: renderTraining, postrace: renderPostRace, tourism: renderTourism };
+  const VIEWS = { home: renderHome, calendar: renderCalendar, race: renderRace, profile: renderProfile, plans: renderPlans, coach: renderCoach, training: renderTraining, postrace: renderPostRace, tourism: renderTourism, myraces: renderMyRaces };
 
   return (
     <div className="app">
