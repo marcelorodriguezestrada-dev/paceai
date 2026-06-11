@@ -1,5 +1,6 @@
 /**
- * PaceAI — Backend serverless para Grok (x.ai)
+ * PaceAI — Backend serverless para Groq
+ * Modelo: llama-3.3-70b-versatile (gratis, muy rápido)
  */
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -16,40 +17,29 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "messages requerido" });
   }
 
-  // ── DEBUG: verificar que la key existe
-  const keyExists = !!process.env.XAI_API_KEY;
-  const keyPrefix = process.env.XAI_API_KEY?.slice(0, 8) || "MISSING";
-  console.log(`[chat] key exists: ${keyExists}, prefix: ${keyPrefix}`);
-
   try {
     const body = {
-      model: "grok-3-mini",
+      model: "llama-3.3-70b-versatile",
       max_tokens,
       messages: system
         ? [{ role: "system", content: system }, ...messages]
         : messages,
     };
 
-    console.log(`[chat] calling xAI, messages count: ${body.messages.length}`);
-
-    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify(body),
     });
 
     const data = await response.json();
 
-    // ── DEBUG: loguear respuesta completa de xAI
-    console.log(`[chat] xAI status: ${response.status}`);
-    console.log(`[chat] xAI response: ${JSON.stringify(data)}`);
-
     if (!response.ok || data.error) {
       const errMsg = data.error?.message || JSON.stringify(data);
-      console.error(`[chat] xAI error: ${errMsg}`);
+      console.error(`[chat] Groq error: ${errMsg}`);
       return res.status(500).json({ error: errMsg });
     }
 
@@ -57,7 +47,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ content: [{ type: "text", text }] });
 
   } catch (err) {
-    console.error(`[chat] catch error: ${err.message}`);
+    console.error(`[chat] catch: ${err.message}`);
     return res.status(500).json({ error: err.message });
   }
 }

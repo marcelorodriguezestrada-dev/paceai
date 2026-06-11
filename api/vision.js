@@ -1,5 +1,7 @@
 /**
- * PaceAI — Backend para análisis de imágenes con Grok Vision
+ * PaceAI — Backend para análisis de imágenes
+ * Groq no soporta visión en modelos gratuitos,
+ * usamos llama-4-scout-17b-16e-instruct que sí soporta imágenes
  */
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -36,14 +38,14 @@ export default async function handler(req, res) {
       ],
     });
 
-    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "grok-2-vision-1212",
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
         max_tokens: 1000,
         messages,
       }),
@@ -51,14 +53,17 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    if (data.error) {
-      return res.status(500).json({ error: data.error.message });
+    if (!response.ok || data.error) {
+      const errMsg = data.error?.message || JSON.stringify(data);
+      console.error(`[vision] Groq error: ${errMsg}`);
+      return res.status(500).json({ error: errMsg });
     }
 
     const result = data.choices?.[0]?.message?.content || "";
     return res.status(200).json({ content: [{ type: "text", text: result }] });
 
   } catch (err) {
+    console.error(`[vision] catch: ${err.message}`);
     return res.status(500).json({ error: err.message });
   }
 }
