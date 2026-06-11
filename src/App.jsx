@@ -430,6 +430,9 @@ export default function RunnerAI() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState("");
   const [paymentSuccess, setPaymentSuccess] = useState("");
+  const [activeSubscription, setActiveSubscription] = useState(null);
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [paymentPendingData, setPaymentPendingData] = useState(null);
   const [msgs, setMsgs] = useState([{ role: "assistant", content: "¡Hola! Soy PaceAI 🏃 Tu coach personal para las carreras de Buenos Aires. ¿Sobre qué querés charlar? Puedo armarte un plan, hablarte de nutrición o prepararte para tu próxima competencia." }]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -457,20 +460,49 @@ export default function RunnerAI() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const savedUser = window.localStorage.getItem("paceai_user");
+    const savedProfile = window.localStorage.getItem("paceai_profile");
+    if (savedUser) {
+      try { setUser(JSON.parse(savedUser)); } catch {}
+    }
+    if (savedProfile) {
+      try { const parsed = JSON.parse(savedProfile); setProfile(parsed); setPForm(parsed); } catch {}
+    }
+
     const params = new URLSearchParams(window.location.search);
     const payment = params.get("payment");
-    if (payment === "success") setPaymentSuccess("Pago aprobado. Gracias por contratar tu plan.");
-    else if (payment === "failure") setPaymentError("Pago rechazado o cancelado. Intentá de nuevo.");
+    const collectionId = params.get("collection_id");
+    const preferenceId = params.get("preference_id");
+    const planId = params.get("plan");
+
+    if (payment === "success" && collectionId && planId) {
+      setPaymentPendingData({ collectionId, preferenceId, planId });
+      return;
+    }
+
+    if (payment === "failure") setPaymentError("Pago rechazado o cancelado. Intentá de nuevo.");
     else if (payment === "pending") setPaymentSuccess("Pago pendiente. Verificá tu medio de pago.");
   }, []);
+
+  useEffect(() => {
+    if (!paymentPendingData || !user) return;
+    verifyPayment(paymentPendingData);
+  }, [paymentPendingData, user]);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       const p = await fbGet("users", user.uid, user.token).catch(() => null);
-      if (p) { setProfile(p); setPForm(p); }
+      if (p) {
+        setProfile(p); setPForm(p);
+        if (typeof window !== "undefined") window.localStorage.setItem("paceai_profile", JSON.stringify(p));
+      }
       const analyses = await fbList(`analyses_${user.uid}`, user.token).catch(() => []);
       setPrHistory(analyses.reverse().slice(0, 5));
+      const subs = await fbList(`subscriptions_${user.uid}`, user.token).catch(() => []);
+      const orderedSubs = subs.reverse();
+      setSubscriptions(orderedSubs);
+      setActiveSubscription(orderedSubs.find(s => s.status === "active") || null);
     })();
   }, [user]);
 
@@ -486,6 +518,7 @@ export default function RunnerAI() {
         ? await fbLogin(authForm.email, authForm.password)
         : await fbRegister(authForm.email, authForm.password);
       setUser(u);
+      if (typeof window !== "undefined") window.localStorage.setItem("paceai_user", JSON.stringify(u));
       setShowAuth(false);
       setAuthForm({ email: "", password: "" });
       if (selPlan && selPlan.id !== "basico") {
@@ -506,8 +539,63 @@ export default function RunnerAI() {
   const saveProfile = async () => {
     if (!pForm.name || !pForm.age) return;
     setProfile(pForm);
-    if (user) await fbSet("users", user.uid, pForm, user.token).catch(() => null);
+    if (user) {
+      await fbSet("users", user.uid, pForm, user.token).catch(() => null);
+      if (typeof window !== "undefined") window.localStorage.setItem("paceai_profile", JSON.stringify(pForm));
+    }
     setView("home");
+  };
+
+  const verifyPayment = async ({ collectionId, preferenceId, planId }) => {
+    setPaymentError("");
+    setPaymentSuccess("");
+    setPaymentLoading(true);
+    const plan = PLANS.find(p => p.id === planId);
+    if (!plan) {
+      setPaymentError("Plan desconocido. No se puede validar el pago.");
+      setPaymentLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/mercadopago-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          collectionId,
+          preferenceId,
+          planId,
+          expectedAmount: plan.amount,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo verificar el pago.");
+
+      const subscription = {
+        planId: plan.id,
+        planName: plan.name,
+        amount: plan.amount,
+        currency: "ARS",
+        status: "active",
+        collectionId: data.collectionId,
+        preferenceId: data.preferenceId,
+        paymentType: data.paymentType,
+        approvedAt: new Date().toISOString(),
+      };
+
+      if (user) {
+        await fbSet(`subscriptions_${user.uid}`, String(data.collectionId), subscription, user.token).catch(() => null);
+      }
+
+      setActiveSubscription(subscription);
+      setSubscriptions(prev => [subscription, ...prev.filter(s => s.collectionId !== subscription.collectionId)]);
+      setPaymentSuccess(`Pago aprobado y plan ${plan.name} activado.`);
+      if (typeof window !== "undefined") window.history.replaceState({}, "", window.location.pathname);
+    } catch (err) {
+      console.error("[verifyPayment]", err);
+      setPaymentError(err.message || "No se pudo verificar el pago.");
+    }
+    setPaymentLoading(false);
   };
 
   const buyPlan = async (plan) => {
@@ -746,6 +834,34 @@ Respondé SOLO con JSON sin markdown:
       {user && <div style={{ marginBottom: 16 }}><span className="saved-badge">✓ Sesión activa · {user.email}</span></div>}
       <h1 className="ptitle">TU PERFIL</h1>
       <p className="psub">La IA usa estos datos para personalizar cada plan. {user ? "Se guarda automáticamente en Firebase." : "Creá una cuenta para guardar en la nube."}</p>
+      {activeSubscription && (
+        <div style={{ margin: "20px 0", padding: 20, borderRadius: 12, background: "rgba(255,69,0,.06)", border: "1px solid rgba(255,69,0,.2)" }}>
+          <div style={{ fontSize: ".95rem", color: "var(--or)", textTransform: "uppercase", fontWeight: 700, marginBottom: 8 }}>Plan activo</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div><strong>{activeSubscription.planName}</strong></div>
+            <div style={{ textAlign: "right", color: "var(--mu)" }}>{activeSubscription.currency} {activeSubscription.amount.toLocaleString()}</div>
+          </div>
+          <div style={{ marginTop: 10, color: "var(--tx)", fontSize: ".92rem" }}>Aprobado en: {new Date(activeSubscription.approvedAt).toLocaleString()}</div>
+          <div style={{ marginTop: 6, color: "var(--mu)", fontSize: ".85rem" }}>Método: {activeSubscription.paymentType || "Desconocido"}</div>
+        </div>
+      )}
+      {subscriptions.length > 0 && (
+        <div style={{ margin: "20px 0" }}>
+          <h2 className="ptitle" style={{ fontSize: "1.4rem", marginBottom: 12 }}>Historial de suscripciones</h2>
+          <div style={{ display: "grid", gap: 12 }}>
+            {subscriptions.map(sub => (
+              <div key={sub.collectionId || sub.id || sub.preferenceId} style={{ background: "var(--bg2)", border: "1px solid var(--bd)", borderRadius: 12, padding: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <div><strong>{sub.planName}</strong> · {sub.status === "active" ? "Activo" : sub.status}</div>
+                  <div style={{ color: "var(--mu)", fontSize: ".85rem" }}>{sub.currency} {Number(sub.amount).toLocaleString()}</div>
+                </div>
+                <div style={{ marginTop: 8, color: "var(--mu)", fontSize: ".85rem" }}>Pago: {sub.paymentType || "Desconocido"}</div>
+                <div style={{ marginTop: 4, color: "var(--mu)", fontSize: ".85rem" }}>Fecha: {new Date(sub.approvedAt || sub.createdAt || Date.now()).toLocaleString()}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="fg"><label className="fl">Nombre</label><input className="fi2" placeholder="¿Cómo te llamás?" value={pForm.name} onChange={e => setPForm(p => ({ ...p, name: e.target.value }))} /></div>
       <div className="frow">
         <div className="fg"><label className="fl">Edad</label><input className="fi2" type="number" placeholder="35" value={pForm.age} onChange={e => setPForm(p => ({ ...p, age: e.target.value }))} /></div>
