@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   try {
     const body = {
-      model: "llama-3.3-70b-versatile",
+      model: req.body.model || "llama-3.3-70b-versatile",
       max_tokens,
       messages: system
         ? [{ role: "system", content: system }, ...messages]

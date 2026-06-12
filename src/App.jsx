@@ -146,6 +146,11 @@ const RACES = [
   { id: 6, name: "Trail Sierra Ventana", date: "2025-11-30", distance: "30K", location: "Sierra de la Ventana, Bs. As.", terrain: "montaña y senderos", weather: "verano inicial", difficulty: "avanzado", image: "⛰️", registered: 900, prize: "Trofeo artesanal + experiencia única", tourism: { zone: "Sierra de la Ventana (600km de CABA)", hotel_zone: "Villa Ventana, Tornquist o Sierra de la Ventana pueblo", parking: "Club Atlético Sierra de la Ventana", metro: "No aplica — tren desde Constitución o auto", cultural: "Cerro Tres Picos, Cueva de las Pinturas Rupestres, La Ventana pueblo" }},
 ];
 
+const ENGINES = [
+  { id: "llm", name: "LLM estándar", description: "Rápido y gratis para ideas generales", model: "llama-3.3-70b-versatile" },
+  { id: "dedicated", name: "Modelo dedicado", description: "Más preciso para planes de entrenamiento", model: "meta-llama/llama-4-scout-17b-16e-instruct" },
+];
+
 const PLANS = [
   { id: "basico", name: "BÁSICO", price: "Gratis", amount: 0, color: "#555", accent: "#999", features: ["Hasta 3 carreras registradas", "1 mes de plan de entrenamiento", "Resumen semanal de actividades", "Calendario de carreras BA", "Acceso comunidad básica"], cta: "Comenzar gratis" },
   { id: "ilimitado", name: "ILIMITADO", price: "$4.990/mes", amount: 4990, color: "#FF4500", accent: "#FF6B35", features: ["Carreras ilimitadas", "Coaching en nutrición y alimentación", "Gestión del esfuerzo por etapas", "Análisis post-carrera con fotos", "Guía turística por sede de carrera", "Chat con IA sin límites"], cta: "Activar plan", popular: true },
@@ -459,10 +464,13 @@ export default function RunnerAI() {
   const [activeSubscription, setActiveSubscription] = useState(null);
   const [subscriptions, setSubscriptions] = useState([]);
   const [plans, setPlans] = useState([]);
+  const [aiEngine, setAiEngine] = useState("llm");
+  const [autoUpdatePlan, setAutoUpdatePlan] = useState(false);
   const freePlansLimit = 3;
   const freePlansUsed = plans.length;
   const freePlansRemaining = Math.max(0, freePlansLimit - freePlansUsed);
   const currentPlanId = user ? activeSubscription?.planId || "basico" : null;
+  const currentEngine = ENGINES.find(e => e.id === aiEngine) || ENGINES[0];
   const [autoGenerateAfterAuth, setAutoGenerateAfterAuth] = useState(false);
   const [paymentPendingData, setPaymentPendingData] = useState(null);
   const [msgs, setMsgs] = useState([{ role: "assistant", content: "¡Hola! Soy PaceAI 🏃 Tu coach personal para las carreras de Buenos Aires. ¿Sobre qué querés charlar? Puedo armarte un plan, hablarte de nutrición o prepararte para tu próxima competencia." }]);
@@ -521,7 +529,13 @@ export default function RunnerAI() {
           if (savedSubscription) {
             try { setActiveSubscription(JSON.parse(savedSubscription)); } catch {}
           }
-        } catch (err) { console.warn('[auth] restore parse failed', err); }
+          const savedAutoUpdate = window.localStorage.getItem("paceai_auto_update_plan");
+          if (savedAutoUpdate) {
+            try { setAutoUpdatePlan(JSON.parse(savedAutoUpdate)); } catch {}
+          }
+        } catch (err) {
+          console.warn('[auth] restore parse failed', err);
+        }
       }
 
       const params = new URLSearchParams(window.location.search);
@@ -529,6 +543,10 @@ export default function RunnerAI() {
       const collectionId = params.get("collection_id");
       const preferenceId = params.get("preference_id");
       const planId = params.get("plan");
+      const savedEngine = window.localStorage.getItem("paceai_engine");
+      if (savedEngine && ENGINES.some(e => e.id === savedEngine)) {
+        setAiEngine(savedEngine);
+      }
 
       if (payment === "success" && collectionId && planId) {
         setPaymentPendingData({ collectionId, preferenceId, planId });
@@ -547,6 +565,22 @@ export default function RunnerAI() {
     if (!paymentPendingData || !user) return;
     verifyPayment(paymentPendingData);
   }, [paymentPendingData, user]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("paceai_engine", aiEngine);
+  }, [aiEngine]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("paceai_auto_update_plan", JSON.stringify(autoUpdatePlan));
+  }, [autoUpdatePlan]);
+
+  useEffect(() => {
+    if (!autoUpdatePlan || !user || !trainPlan || view !== "training") return;
+    if (!trainPlan.race) return;
+    genTrainPlan(trainPlan.race, user);
+  }, [aiEngine]);
 
   const refreshUserData = async (currentUser) => {
     const p = await fbGet("users", currentUser.uid, currentUser.token).catch(() => null);
@@ -587,6 +621,7 @@ export default function RunnerAI() {
         : await fbRegister(authForm.email, authForm.password);
       setUser(u);
       if (typeof window !== "undefined") window.localStorage.setItem("paceai_user", JSON.stringify(u));
+      await refreshUserData(u);
       setShowAuth(false);
       setAuthForm({ email: "", password: "" });
       if (selPlan && selPlan.id !== "basico") {
@@ -595,7 +630,6 @@ export default function RunnerAI() {
       // If user requested generation before auth, continue now
       if (autoGenerateAfterAuth && selRace) {
         setAutoGenerateAfterAuth(false);
-        await refreshUserData(u);
         await handleGenerateClick(selRace, u);
       }
     } catch (e) {
@@ -616,6 +650,11 @@ export default function RunnerAI() {
     if (user) {
       await fbSet("users", user.uid, pForm, user.token).catch(() => null);
       if (typeof window !== "undefined") window.localStorage.setItem("paceai_profile", JSON.stringify(pForm));
+    }
+    if (autoUpdatePlan && user && trainPlan && trainPlan.race) {
+      await genTrainPlan(trainPlan.race, user);
+      setView("training");
+      return;
     }
     setView("home");
   };
@@ -679,7 +718,10 @@ export default function RunnerAI() {
       setSubscriptions(prev => [subscription, ...prev.filter(s => s.collectionId !== subscription.collectionId)]);
       if (typeof window !== "undefined") window.localStorage.setItem("paceai_subscription", JSON.stringify(subscription));
       setPaymentSuccess(`Pago aprobado y plan ${plan.name} activado.`);
-      if (typeof window !== "undefined") window.history.replaceState({}, "", window.location.pathname);
+      if (typeof window !== "undefined") {
+        window.history.replaceState({}, "", window.location.pathname);
+        setPaymentPendingData(null);
+      }
     } catch (err) {
       console.error("[verifyPayment]", err);
       setPaymentError(err.message || "No se pudo verificar el pago.");
@@ -782,6 +824,7 @@ export default function RunnerAI() {
       const res = await fetch("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          model: currentEngine.model,
           max_tokens: 4096,
           messages: [{ role: "user", content: `Generá plan de entrenamiento para "${race.name}" (${race.distance}), fecha ${race.date}, terreno ${race.terrain}, clima ${race.weather}.${profile ? ` Perfil: nivel ${profile.level}, ${profile.age} años, ${profile.days} días/semana.` : ""}
 Respondé SOLO con JSON sin markdown:
@@ -892,6 +935,16 @@ Respondé SOLO con JSON sin markdown:
             <button className="btnp" onClick={() => setView("calendar")}>Ver carreras 2025</button>
             <button className="btns" onClick={() => setView("coach")}>Hablar con PaceAI</button>
           </div>
+          {user && (
+            <div style={{ marginTop: 22, padding: 18, borderRadius: 14, background: "rgba(255,69,0,.06)", border: "1px solid rgba(255,69,0,.18)", color: "var(--tx)", maxWidth: 620 }}>
+              <strong style={{ display: "block", marginBottom: 6 }}>Tu plan actual:</strong>
+              {activeSubscription ? (
+                <span>{activeSubscription.planName} · {activeSubscription.currency} {activeSubscription.amount.toLocaleString()} · activo</span>
+              ) : (
+                <span>BÁSICO gratis · hasta 3 carreras guardadas</span>
+              )}
+            </div>
+          )}
           <div className="hstats">
             {[["6+","Carreras BA"],["42K","Maratón incluida"],["3","Niveles de plan"],["24/7","Coach IA"]].map(([n,l]) => (
               <div key={l}><div className="stn">{n}</div><div className="stl">{l}</div></div>
@@ -952,6 +1005,22 @@ Respondé SOLO con JSON sin markdown:
             Plan gratis: {freePlansUsed} de {freePlansLimit} guardados. {freePlansRemaining > 0 ? `Te quedan ${freePlansRemaining} cupos.` : "Activa ILIMITADO para generar más."}
           </div>
         )}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10, marginBottom: 18 }}>
+          {ENGINES.map(engine => (
+            <div
+              key={engine.id}
+              className={`lopt ${aiEngine === engine.id ? "sel" : ""}`}
+              onClick={() => setAiEngine(engine.id)}
+              style={{ cursor: "pointer" }}
+            >
+              <div className="lic">{engine.name}</div>
+              <div className="ln" style={{ color: "var(--mu)", fontSize: ".78rem" }}>{engine.description}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ color: "var(--mu)", fontSize: ".85rem", marginBottom: 14 }}>
+          Motor seleccionado: <strong>{currentEngine.name}</strong>. Esto define si tu plan IA se genera con el LLM rápido o con el modelo dedicado para planes.
+        </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button className="btnp" onClick={() => handleGenerateClick(race)}>🤖 Generar plan IA</button>
           <button className="btns" onClick={() => { setView("coach"); sendMsg(`Quiero prepararme para la ${race.name} (${race.distance}). Terreno: ${race.terrain}, clima: ${race.weather}.`); }}>💬 Preguntar al coach</button>
@@ -1009,6 +1078,17 @@ Respondé SOLO con JSON sin markdown:
       {user && (
         <div style={{ marginTop: 12 }}>
           <button className="btns" onClick={() => setView("myraces")}>Mis Carreras ({plans.length || 0} guardadas)</button>
+        </div>
+      )}
+      {user && (
+        <div style={{ margin: "20px 0", padding: 18, borderRadius: 12, background: "rgba(255,255,255,.02)", border: "1px solid var(--bd)" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", color: "var(--tx)" }}>
+            <input type="checkbox" checked={autoUpdatePlan} onChange={e => setAutoUpdatePlan(e.target.checked)} />
+            <span style={{ fontSize: ".92rem" }}>Actualizar automáticamente el plan cuando cambies tu perfil o el motor de IA.</span>
+          </label>
+          <div style={{ marginTop: 8, color: "var(--mu)", fontSize: ".82rem" }}>
+            Si está activo, el plan se regenerará con tu perfil actualizado o al cambiar el modelo de IA en la carrera.
+          </div>
         </div>
       )}
       <div className="fg"><label className="fl">Nombre</label><input className="fi2" placeholder="¿Cómo te llamás?" value={pForm.name} onChange={e => setPForm(p => ({ ...p, name: e.target.value }))} /></div>
@@ -1148,6 +1228,15 @@ Respondé SOLO con JSON sin markdown:
         <h1 className="ttitle">PLAN DE ENTRENAMIENTO</h1>
         <div className="trace">{race?.name} · {race?.distance}</div>
         {user && <div style={{ marginTop: 8 }}><span className="saved-badge">✓ Guardado en Firebase</span></div>}
+        {autoUpdatePlan ? (
+          <div style={{ marginTop: 8, color: "var(--mu)", fontSize: ".84rem" }}>
+            Auto-actualización activada: si guardás tu perfil o cambiás el motor IA, el plan se regenerará automáticamente.
+          </div>
+        ) : (
+          <div style={{ marginTop: 8, color: "var(--mu)", fontSize: ".84rem" }}>
+            Activá la actualización automática en Perfil para que el plan se regenere con los cambios.
+          </div>
+        )}
         <div className="wtabs">{semanas.map((s, i) => <button key={i} className={`wtab ${activeWeek===i?"act":""}`} onClick={() => setActiveWeek(i)}>Sem {s.numero}</button>)}</div>
         {sem.sesiones && (
           <div className="wcont">
@@ -1265,6 +1354,9 @@ Respondé SOLO con JSON sin markdown:
         <div className="nav-r">
           {user ? (
             <>
+              <div style={{ textAlign: "right", marginRight: 10, color: "var(--mu)", fontSize: ".78rem" }}>
+                {activeSubscription ? `${activeSubscription.planName} activo` : "BÁSICO gratis"}
+              </div>
               <button className="ava" onClick={() => setView("profile")} title={user.email}>{user.email[0].toUpperCase()}</button>
               <button className="nl" onClick={logout} style={{ marginLeft: 8 }}>Cerrar sesión</button>
             </>
