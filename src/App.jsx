@@ -98,6 +98,13 @@ const fbSet = async (collection, docId, data, token) => {
   return r.json();
 };
 
+const fbDelete = async (collection, docId, token) => {
+  const r = await fetch(`${fsBase(collection, docId)}?key=${FB.apiKey}`, {
+    method: "DELETE", headers: { "Authorization": `Bearer ${token}` },
+  });
+  return r.json();
+};
+
 const fbGet = async (collection, docId, token) => {
   const r = await fetch(`${fsBase(collection, docId)}?key=${FB.apiKey}`, {
     headers: { "Authorization": `Bearer ${token}` },
@@ -1012,6 +1019,16 @@ Respondé SOLO con JSON sin markdown:
     </div>
   );
 
+  const deletePlan = async (planId) => {
+    if (!user) return;
+    try {
+      await fbDelete(`plans_${user.uid}`, planId, user.token).catch(() => null);
+      setPlans(prev => prev.filter(p => p.id !== planId));
+    } catch (err) {
+      console.error("[deletePlan]", err);
+    }
+  };
+
   const renderMyRaces = () => (
     <div className="pw">
       <button className="back" onClick={() => setView("profile")}>← Perfil</button>
@@ -1021,13 +1038,14 @@ Respondé SOLO con JSON sin markdown:
       <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
         {plans.map(p => (
           <div key={p.id} style={{ background: "var(--bg2)", border: "1px solid var(--bd)", borderRadius: 12, padding: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontWeight: 800 }}>{p.race?.name || "Carrera"}</div>
                 <div style={{ color: "var(--mu)", fontSize: ".9rem" }}>{p.race?.distance || ""} · {new Date(p.createdAt || Date.now()).toLocaleString()}</div>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button className="btns" onClick={() => { setTrainPlan({ ... (p.plan || {}), race: p.race }); setView("training"); }}>Abrir plan</button>
+                <button className="btns" style={{ background: "transparent", color: "var(--or)", border: "1px solid var(--or)" }} onClick={() => deletePlan(p.id)}>Eliminar</button>
               </div>
             </div>
           </div>
