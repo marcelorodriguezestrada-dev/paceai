@@ -698,7 +698,7 @@ export default function RunnerAI() {
     await buyPlan(plan);
   };
 
-  const handleGenerateClick = (race) => {
+  const handleGenerateClick = async (race) => {
     // Require login to generate & save plans
     if (!user) {
       setSelRace(race);
@@ -706,13 +706,24 @@ export default function RunnerAI() {
       setShowAuth(true);
       return;
     }
+
     // Enforce freemium limit: 3 plans gratis
-    const saved = plans || [];
-    if (!activeSubscription && saved.length >= 3) {
-      setPaymentError("Has alcanzado 3 planes gratis. Activá ILIMITADO para generar más.");
-      setView("plans");
-      return;
+    if (!activeSubscription) {
+      let saved = plans || [];
+      if (saved.length < 3) {
+        const remoteSaved = await fbList(`plans_${user.uid}`, user.token).catch(() => []);
+        if (remoteSaved.length > saved.length) {
+          setPlans(remoteSaved.reverse());
+          saved = remoteSaved;
+        }
+      }
+      if (saved.length >= 3) {
+        setPaymentError("Has alcanzado 3 planes gratis. Activá ILIMITADO para generar más.");
+        setView("plans");
+        return;
+      }
     }
+
     genTrainPlan(race);
   };
 
