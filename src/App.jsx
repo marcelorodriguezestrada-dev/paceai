@@ -430,6 +430,7 @@ function PlanCard({ plan, onSelect, activePlanId }) {
       {plan.popular && <div className="pbadge">⭐ MÁS ELEGIDO</div>}
       <div className="pname" style={{ color: plan.color }}>{plan.name}</div>
       <div className="pprice" style={{ color: plan.accent }}>{plan.price}</div>
+      {isActive && <div style={{ marginBottom: 14, color: "var(--or)", fontWeight: 700 }}>Plan actual</div>}
       <ul className="pfeats">{plan.features.map(f => <li key={f} className="pf">{f}</li>)}</ul>
       <button
         className="pbtn"
@@ -461,6 +462,7 @@ export default function RunnerAI() {
   const freePlansLimit = 3;
   const freePlansUsed = plans.length;
   const freePlansRemaining = Math.max(0, freePlansLimit - freePlansUsed);
+  const currentPlanId = user ? activeSubscription?.planId || "basico" : null;
   const [autoGenerateAfterAuth, setAutoGenerateAfterAuth] = useState(false);
   const [paymentPendingData, setPaymentPendingData] = useState(null);
   const [msgs, setMsgs] = useState([{ role: "assistant", content: "¡Hola! Soy PaceAI 🏃 Tu coach personal para las carreras de Buenos Aires. ¿Sobre qué querés charlar? Puedo armarte un plan, hablarte de nutrición o prepararte para tu próxima competencia." }]);
@@ -1042,13 +1044,26 @@ Respondé SOLO con JSON sin markdown:
       <button className="back" onClick={() => setView("home")}>← Inicio</button>
       <div className="sh" style={{ marginBottom: 10 }}><h1 className="st">ELEGÍ TU <span>PLAN</span></h1></div>
       <p style={{ color: "var(--mu)", marginBottom: 18, fontSize: ".92rem" }}>Tres niveles de coaching. Desde tu primera carrera hasta las métricas de élite.</p>
-      {user && activeSubscription && (
+      {user ? (
         <div style={{ marginBottom: 18, padding: 16, borderRadius: 12, background: "rgba(255,69,0,.08)", border: "1px solid rgba(255,69,0,.2)", color: "var(--tx)" }}>
-          <strong>Plan activo:</strong> {activeSubscription.planName} · {activeSubscription.currency} {activeSubscription.amount.toLocaleString()}.
-          <div style={{ color: "var(--mu)", marginTop: 6 }}>Se renovará automáticamente según tu método de pago. Lo podés ver también en Perfil.</div>
+          {activeSubscription ? (
+            <>
+              <strong>Plan activo:</strong> {activeSubscription.planName} · {activeSubscription.currency} {activeSubscription.amount.toLocaleString()}.
+              <div style={{ color: "var(--mu)", marginTop: 6 }}>Se renovará automáticamente según tu medio de pago. Lo podés ver también en Perfil.</div>
+            </>
+          ) : (
+            <>
+              <strong>Plan actual:</strong> BÁSICO gratis · hasta 3 carreras guardadas.
+              <div style={{ color: "var(--mu)", marginTop: 6 }}>Generá planes sin costo hasta 3 carreras. Activá ILIMITADO para más acceso.</div>
+            </>
+          )}
+        </div>
+      ) : (
+        <div style={{ marginBottom: 18, padding: 16, borderRadius: 12, background: "rgba(17,17,17,.95)", border: "1px solid var(--bd)", color: "var(--mu)" }}>
+          Iniciá sesión para ver y gestionar tus planes y suscripciones.
         </div>
       )}
-      <div className="pgrid">{PLANS.map(p => <PlanCard key={p.id} plan={p} onSelect={handlePlanSelect} activePlanId={activeSubscription?.planId} />)}</div>
+      <div className="pgrid">{PLANS.map(p => <PlanCard key={p.id} plan={p} onSelect={handlePlanSelect} activePlanId={currentPlanId} />)}</div>
       {paymentError && <div className="ferr" style={{ marginTop: 18 }}>{paymentError}</div>}
       {paymentSuccess && <div className="saved-badge" style={{ marginTop: 18 }}>{paymentSuccess}</div>}
       {paymentLoading && <div style={{ marginTop: 18, color: "var(--tx)" }}>Redirigiendo a Mercado Pago...</div>}
