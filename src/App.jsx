@@ -492,12 +492,17 @@ export default function RunnerAI() {
               const refreshed = await fbRefreshToken(savedUser.refreshToken);
               savedUser = { ...savedUser, ...refreshed, email: savedUser.email || refreshed.email };
               window.localStorage.setItem("paceai_user", JSON.stringify(savedUser));
+              setUser(savedUser);
             } catch (refreshError) {
-              console.warn("[auth] Token refresh failed", refreshError);
+              console.warn("[auth] Token refresh failed, clearing saved session", refreshError);
+              window.localStorage.removeItem("paceai_user");
+              // don't set user with expired token
             }
+          } else {
+            // no refresh token available, restore as-is
+            setUser(savedUser);
           }
-          setUser(savedUser);
-        } catch {}
+        } catch (err) { console.warn('[auth] restore parse failed', err); }
       }
 
       const params = new URLSearchParams(window.location.search);
