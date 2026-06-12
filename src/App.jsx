@@ -929,6 +929,16 @@ Respondé SOLO con JSON sin markdown:
           <div style={{ marginTop: 6, color: "var(--mu)", fontSize: ".85rem" }}>Método: {activeSubscription.paymentType || "Desconocido"}</div>
         </div>
       )}
+      {!activeSubscription && user && (
+        <div style={{ margin: "20px 0", padding: 20, borderRadius: 12, background: "rgba(255,255,255,.02)", border: "1px solid var(--bd)" }}>
+          <div style={{ fontSize: ".95rem", color: "var(--mu)", textTransform: "uppercase", fontWeight: 700, marginBottom: 8 }}>Plan actual</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div><strong>BÁSICO</strong><div style={{ color: "var(--mu)", fontSize: ".9rem" }}>Gratis · hasta 3 carreras guardadas</div></div>
+            <div style={{ textAlign: "right", color: "var(--mu)" }}>ARS 0</div>
+          </div>
+          <div style={{ marginTop: 8, color: "var(--mu)", fontSize: ".85rem" }}>Si querés más planes, activá ILIMITADO desde Planes.</div>
+        </div>
+      )}
       {subscriptions.length > 0 && (
         <div style={{ margin: "20px 0" }}>
           <h2 className="ptitle" style={{ fontSize: "1.4rem", marginBottom: 12 }}>Historial de suscripciones</h2>
