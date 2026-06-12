@@ -423,7 +423,8 @@ function RaceCard({ race, onClick }) {
   );
 }
 
-function PlanCard({ plan, onSelect }) {
+function PlanCard({ plan, onSelect, activePlanId }) {
+  const isActive = activePlanId === plan.id;
   return (
     <div className={`pcard ${plan.popular ? "pop" : ""}`}>
       {plan.popular && <div className="pbadge">⭐ MÁS ELEGIDO</div>}
@@ -432,10 +433,11 @@ function PlanCard({ plan, onSelect }) {
       <ul className="pfeats">{plan.features.map(f => <li key={f} className="pf">{f}</li>)}</ul>
       <button
         className="pbtn"
-        style={{ background: plan.popular ? plan.color : "transparent", color: plan.popular ? "#fff" : plan.color, border: `1px solid ${plan.color}` }}
-        onClick={() => onSelect(plan)}
+        style={{ background: plan.popular ? plan.color : "transparent", color: plan.popular ? "#fff" : plan.color, border: `1px solid ${plan.color}`, opacity: isActive ? 0.65 : 1, cursor: isActive ? "not-allowed" : "pointer" }}
+        onClick={() => !isActive && onSelect(plan)}
+        disabled={isActive}
       >
-        {plan.cta}
+        {isActive ? "Plan activo" : plan.cta}
       </button>
     </div>
   );
@@ -456,6 +458,9 @@ export default function RunnerAI() {
   const [activeSubscription, setActiveSubscription] = useState(null);
   const [subscriptions, setSubscriptions] = useState([]);
   const [plans, setPlans] = useState([]);
+  const freePlansLimit = 3;
+  const freePlansUsed = plans.length;
+  const freePlansRemaining = Math.max(0, freePlansLimit - freePlansUsed);
   const [autoGenerateAfterAuth, setAutoGenerateAfterAuth] = useState(false);
   const [paymentPendingData, setPaymentPendingData] = useState(null);
   const [msgs, setMsgs] = useState([{ role: "assistant", content: "¡Hola! Soy PaceAI 🏃 Tu coach personal para las carreras de Buenos Aires. ¿Sobre qué querés charlar? Puedo armarte un plan, hablarte de nutrición o prepararte para tu próxima competencia." }]);
@@ -509,6 +514,11 @@ export default function RunnerAI() {
             // no refresh token available, restore as-is
             setUser(savedUser);
           }
+
+          const savedSubscription = window.localStorage.getItem("paceai_subscription");
+          if (savedSubscription) {
+            try { setActiveSubscription(JSON.parse(savedSubscription)); } catch {}
+          }
         } catch (err) { console.warn('[auth] restore parse failed', err); }
       }
 
@@ -536,23 +546,30 @@ export default function RunnerAI() {
     verifyPayment(paymentPendingData);
   }, [paymentPendingData, user]);
 
+  const refreshUserData = async (currentUser) => {
+    const p = await fbGet("users", currentUser.uid, currentUser.token).catch(() => null);
+    if (p) {
+      setProfile(p); setPForm(p);
+      if (typeof window !== "undefined") window.localStorage.setItem("paceai_profile", JSON.stringify(p));
+    }
+    const analyses = await fbList(`analyses_${currentUser.uid}`, currentUser.token).catch(() => []);
+    setPrHistory(analyses.reverse().slice(0, 5));
+    const subs = await fbList(`subscriptions_${currentUser.uid}`, currentUser.token).catch(() => []);
+    const orderedSubs = subs.reverse();
+    setSubscriptions(orderedSubs);
+    const activeSub = orderedSubs.find(s => s.status === "active") || null;
+    setActiveSubscription(activeSub);
+    if (typeof window !== "undefined") {
+      if (activeSub) window.localStorage.setItem("paceai_subscription", JSON.stringify(activeSub));
+      else window.localStorage.removeItem("paceai_subscription");
+    }
+    const savedPlans = await fbList(`plans_${currentUser.uid}`, currentUser.token).catch(() => []);
+    setPlans(savedPlans.reverse());
+  };
+
   useEffect(() => {
     if (!user) return;
-    (async () => {
-      const p = await fbGet("users", user.uid, user.token).catch(() => null);
-      if (p) {
-        setProfile(p); setPForm(p);
-        if (typeof window !== "undefined") window.localStorage.setItem("paceai_profile", JSON.stringify(p));
-      }
-        const analyses = await fbList(`analyses_${user.uid}`, user.token).catch(() => []);
-        setPrHistory(analyses.reverse().slice(0, 5));
-        const subs = await fbList(`subscriptions_${user.uid}`, user.token).catch(() => []);
-        const orderedSubs = subs.reverse();
-        setSubscriptions(orderedSubs);
-        setActiveSubscription(orderedSubs.find(s => s.status === "active") || null);
-        const savedPlans = await fbList(`plans_${user.uid}`, user.token).catch(() => []);
-        setPlans(savedPlans.reverse());
-    })();
+    refreshUserData(user);
   }, [user]);
 
   const doAuth = async () => {
@@ -576,7 +593,8 @@ export default function RunnerAI() {
       // If user requested generation before auth, continue now
       if (autoGenerateAfterAuth && selRace) {
         setAutoGenerateAfterAuth(false);
-        await genTrainPlan(selRace, u);
+        await refreshUserData(u);
+        await handleGenerateClick(selRace, u);
       }
     } catch (e) {
       const msg = e.message
@@ -604,6 +622,7 @@ export default function RunnerAI() {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("paceai_user");
       window.localStorage.removeItem("paceai_profile");
+      window.localStorage.removeItem("paceai_subscription");
     }
     setUser(null);
     setProfile(null);
@@ -656,6 +675,7 @@ export default function RunnerAI() {
 
       setActiveSubscription(subscription);
       setSubscriptions(prev => [subscription, ...prev.filter(s => s.collectionId !== subscription.collectionId)]);
+      if (typeof window !== "undefined") window.localStorage.setItem("paceai_subscription", JSON.stringify(subscription));
       setPaymentSuccess(`Pago aprobado y plan ${plan.name} activado.`);
       if (typeof window !== "undefined") window.history.replaceState({}, "", window.location.pathname);
     } catch (err) {
@@ -698,6 +718,10 @@ export default function RunnerAI() {
       setPaymentSuccess("Seleccionaste el plan gratis. ¡A disfrutar!");
       return setView("plans");
     }
+    if (activeSubscription && activeSubscription.planId === plan.id) {
+      setPaymentSuccess(`Ya tenés el plan ${plan.name} activo.`);
+      return setView("plans");
+    }
     if (!user) {
       setShowAuth(true);
       return;
@@ -705,9 +729,9 @@ export default function RunnerAI() {
     await buyPlan(plan);
   };
 
-  const handleGenerateClick = async (race) => {
+  const handleGenerateClick = async (race, currentUser = user) => {
     // Require login to generate & save plans
-    if (!user) {
+    if (!currentUser) {
       setSelRace(race);
       setAutoGenerateAfterAuth(true);
       setShowAuth(true);
@@ -718,7 +742,7 @@ export default function RunnerAI() {
     if (!activeSubscription) {
       let saved = plans || [];
       if (saved.length < 3) {
-        const remoteSaved = await fbList(`plans_${user.uid}`, user.token).catch(() => []);
+        const remoteSaved = await fbList(`plans_${currentUser.uid}`, currentUser.token).catch(() => []);
         if (remoteSaved.length > saved.length) {
           setPlans(remoteSaved.reverse());
           saved = remoteSaved;
@@ -731,7 +755,7 @@ export default function RunnerAI() {
       }
     }
 
-    genTrainPlan(race);
+    genTrainPlan(race, currentUser);
   };
 
   const sendMsg = async (txt) => {
@@ -921,6 +945,11 @@ Respondé SOLO con JSON sin markdown:
           <div style={{ fontSize: ".78rem", color: "var(--or)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 6 }}>🏆 Premio</div>
           <div style={{ fontSize: ".88rem" }}>{race.prize}</div>
         </div>
+        {user && !activeSubscription && (
+          <div style={{ marginBottom: 12, color: "var(--mu)", fontSize: ".92rem" }}>
+            Plan gratis: {freePlansUsed} de {freePlansLimit} guardados. {freePlansRemaining > 0 ? `Te quedan ${freePlansRemaining} cupos.` : "Activa ILIMITADO para generar más."}
+          </div>
+        )}
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button className="btnp" onClick={() => handleGenerateClick(race)}>🤖 Generar plan IA</button>
           <button className="btns" onClick={() => { setView("coach"); sendMsg(`Quiero prepararme para la ${race.name} (${race.distance}). Terreno: ${race.terrain}, clima: ${race.weather}.`); }}>💬 Preguntar al coach</button>
@@ -954,6 +983,7 @@ Respondé SOLO con JSON sin markdown:
             <div><strong>BÁSICO</strong><div style={{ color: "var(--mu)", fontSize: ".9rem" }}>Gratis · hasta 3 carreras guardadas</div></div>
             <div style={{ textAlign: "right", color: "var(--mu)" }}>ARS 0</div>
           </div>
+          <div style={{ marginTop: 8, color: "var(--mu)", fontSize: ".92rem" }}>Usaste {freePlansUsed} de {freePlansLimit} planes gratis. {freePlansRemaining > 0 ? `Quedan ${freePlansRemaining}.` : "Cupos agotados."}</div>
           <div style={{ marginTop: 8, color: "var(--mu)", fontSize: ".85rem" }}>Si querés más planes, activá ILIMITADO desde Planes.</div>
         </div>
       )}
@@ -1011,8 +1041,14 @@ Respondé SOLO con JSON sin markdown:
     <div className="pw">
       <button className="back" onClick={() => setView("home")}>← Inicio</button>
       <div className="sh" style={{ marginBottom: 10 }}><h1 className="st">ELEGÍ TU <span>PLAN</span></h1></div>
-      <p style={{ color: "var(--mu)", marginBottom: 36, fontSize: ".92rem" }}>Tres niveles de coaching. Desde tu primera carrera hasta las métricas de élite.</p>
-<div className="pgrid">{PLANS.map(p => <PlanCard key={p.id} plan={p} onSelect={handlePlanSelect} />)}</div>
+      <p style={{ color: "var(--mu)", marginBottom: 18, fontSize: ".92rem" }}>Tres niveles de coaching. Desde tu primera carrera hasta las métricas de élite.</p>
+      {user && activeSubscription && (
+        <div style={{ marginBottom: 18, padding: 16, borderRadius: 12, background: "rgba(255,69,0,.08)", border: "1px solid rgba(255,69,0,.2)", color: "var(--tx)" }}>
+          <strong>Plan activo:</strong> {activeSubscription.planName} · {activeSubscription.currency} {activeSubscription.amount.toLocaleString()}.
+          <div style={{ color: "var(--mu)", marginTop: 6 }}>Se renovará automáticamente según tu método de pago. Lo podés ver también en Perfil.</div>
+        </div>
+      )}
+      <div className="pgrid">{PLANS.map(p => <PlanCard key={p.id} plan={p} onSelect={handlePlanSelect} activePlanId={activeSubscription?.planId} />)}</div>
       {paymentError && <div className="ferr" style={{ marginTop: 18 }}>{paymentError}</div>}
       {paymentSuccess && <div className="saved-badge" style={{ marginTop: 18 }}>{paymentSuccess}</div>}
       {paymentLoading && <div style={{ marginTop: 18, color: "var(--tx)" }}>Redirigiendo a Mercado Pago...</div>}
