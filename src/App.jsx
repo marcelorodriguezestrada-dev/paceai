@@ -593,6 +593,19 @@ export default function RunnerAI() {
     setView("home");
   };
 
+  const logout = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("paceai_user");
+      window.localStorage.removeItem("paceai_profile");
+    }
+    setUser(null);
+    setProfile(null);
+    setPlans([]);
+    setActiveSubscription(null);
+    setTrainPlan(null);
+    setView("home");
+  };
+
   const verifyPayment = async ({ collectionId, preferenceId, planId }) => {
     setPaymentError("");
     setPaymentSuccess("");
@@ -1161,7 +1174,10 @@ Respondé SOLO con JSON sin markdown:
         </div>
         <div className="nav-r">
           {user ? (
-            <button className="ava" onClick={() => setView("profile")} title={user.email}>{user.email[0].toUpperCase()}</button>
+            <>
+              <button className="ava" onClick={() => setView("profile")} title={user.email}>{user.email[0].toUpperCase()}</button>
+              <button className="nl" onClick={logout} style={{ marginLeft: 8 }}>Cerrar sesión</button>
+            </>
           ) : (
             <>
               <button className="nav-btn" style={{ background: "transparent", color: "var(--or)", border: "1px solid var(--or)" }} onClick={() => setShowAuth(true)}>Ingresar</button>
