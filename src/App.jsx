@@ -13,7 +13,7 @@ const fbRegister = async (email, password) => {
   });
   const d = await r.json();
   if (d.error) throw new Error(d.error.message);
-  return { uid: d.localId, email: d.email, token: d.idToken };
+  return { uid: d.localId, email: d.email, token: d.idToken, refreshToken: d.refreshToken };
 };
 
 /**
@@ -52,7 +52,23 @@ const fbLogin = async (email, password) => {
   });
   const d = await r.json();
   if (d.error) throw new Error(d.error.message);
-  return { uid: d.localId, email: d.email, token: d.idToken };
+  return { uid: d.localId, email: d.email, token: d.idToken, refreshToken: d.refreshToken };
+};
+
+const fbRefreshToken = async (refreshToken) => {
+  const r = await fetch(`https://securetoken.googleapis.com/v1/token?key=${FB.apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
+  });
+  const d = await r.json();
+  if (d.error) throw new Error(d.error.message || "No se pudo refrescar el token.");
+  return {
+    uid: d.user_id,
+    token: d.id_token,
+    refreshToken: d.refresh_token,
+    email: d.email || null,
+  };
 };
 
 const toFS = (obj) => ({
@@ -462,29 +478,46 @@ export default function RunnerAI() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const savedUser = window.localStorage.getItem("paceai_user");
-    const savedProfile = window.localStorage.getItem("paceai_profile");
-    if (savedUser) {
-      try { setUser(JSON.parse(savedUser)); } catch {}
-    }
-    if (savedProfile) {
-      try { const parsed = JSON.parse(savedProfile); setProfile(parsed); setPForm(parsed); } catch {}
-    }
+    const restoreUser = async () => {
+      const savedUserRaw = window.localStorage.getItem("paceai_user");
+      const savedProfile = window.localStorage.getItem("paceai_profile");
+      if (savedProfile) {
+        try { const parsed = JSON.parse(savedProfile); setProfile(parsed); setPForm(parsed); } catch {}
+      }
+      if (savedUserRaw) {
+        try {
+          let savedUser = JSON.parse(savedUserRaw);
+          if (savedUser.refreshToken) {
+            try {
+              const refreshed = await fbRefreshToken(savedUser.refreshToken);
+              savedUser = { ...savedUser, ...refreshed, email: savedUser.email || refreshed.email };
+              window.localStorage.setItem("paceai_user", JSON.stringify(savedUser));
+            } catch (refreshError) {
+              console.warn("[auth] Token refresh failed", refreshError);
+            }
+          }
+          setUser(savedUser);
+        } catch {}
+      }
 
-    const params = new URLSearchParams(window.location.search);
-    const payment = params.get("payment");
-    const collectionId = params.get("collection_id");
-    const preferenceId = params.get("preference_id");
-    const planId = params.get("plan");
+      const params = new URLSearchParams(window.location.search);
+      const payment = params.get("payment");
+      const collectionId = params.get("collection_id");
+      const preferenceId = params.get("preference_id");
+      const planId = params.get("plan");
 
-    if (payment === "success" && collectionId && planId) {
-      setPaymentPendingData({ collectionId, preferenceId, planId });
-      return;
-    }
+      if (payment === "success" && collectionId && planId) {
+        setPaymentPendingData({ collectionId, preferenceId, planId });
+        return;
+      }
 
-    if (payment === "failure") setPaymentError("Pago rechazado o cancelado. Intentá de nuevo.");
-    else if (payment === "pending") setPaymentSuccess("Pago pendiente. Verificá tu medio de pago.");
+      if (payment === "failure") setPaymentError("Pago rechazado o cancelado. Intentá de nuevo.");
+      else if (payment === "pending") setPaymentSuccess("Pago pendiente. Verificá tu medio de pago.");
+    };
+
+    restoreUser();
   }, []);
+
 
   useEffect(() => {
     if (!paymentPendingData || !user) return;
@@ -531,7 +564,7 @@ export default function RunnerAI() {
       // If user requested generation before auth, continue now
       if (autoGenerateAfterAuth && selRace) {
         setAutoGenerateAfterAuth(false);
-        await genTrainPlan(selRace);
+        await genTrainPlan(selRace, u);
       }
     } catch (e) {
       const msg = e.message
@@ -681,7 +714,7 @@ export default function RunnerAI() {
     setChatLoading(false);
   };
 
-  const genTrainPlan = async (race) => {
+  const genTrainPlan = async (race, currentUser = user) => {
     setGenPlan(true); setView("training"); setActiveWeek(0);
     try {
       const res = await fetch("/api/chat", {
@@ -718,7 +751,13 @@ Respondé SOLO con JSON sin markdown:
 
       const full = { ...plan, race };
       setTrainPlan(full);
-      if (user) await fbSet(`plans_${user.uid}`, `${race.id}_${Date.now()}`, { race: JSON.stringify(race), plan: JSON.stringify(plan), createdAt: new Date().toISOString() }, user.token).catch(() => null);
+      if (currentUser) {
+        const docId = `${race.id}_${Date.now()}`;
+        const createdAt = new Date().toISOString();
+        const record = { id: docId, race: JSON.stringify(race), plan: JSON.stringify(plan), createdAt };
+        await fbSet(`plans_${currentUser.uid}`, docId, record, currentUser.token).catch(() => null);
+        setPlans(prev => [{ id: docId, race, plan, createdAt }, ...prev]);
+      }
     } catch (err) {
       console.error('[genTrainPlan] error:', err);
       setTrainPlan({ error: true, race });
@@ -1113,6 +1152,7 @@ Respondé SOLO con JSON sin markdown:
           {[["home","Inicio"],["calendar","Carreras"],["tourism","Turismo"],["postrace","Post-carrera"],["plans","Planes"],["coach","PaceAI 🤖"]].map(([id,lb]) => (
             <button key={id} className={`nl ${view===id?"act":""}`} onClick={() => setView(id)}>{lb}</button>
           ))}
+          {user && <button className={`nl ${view==="myraces"?"act":""}`} onClick={() => setView("myraces")}>Mis Carreras</button>}
         </div>
         <div className="nav-r">
           {user ? (
