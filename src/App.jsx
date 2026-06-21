@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import CalendarTimeline from "./components/CalendarTimeline";
+import { buildMultiRacePrompt, buildRecalibrationPrompt, mergeRecalibratedWeeks } from "./utils/multiRace";
 
 const FB = {
   apiKey: import.meta.env.VITE_FB_API_KEY || "TU_API_KEY",
@@ -1021,6 +1023,13 @@ export default function RunnerAI() {
     comentarios: "",
   });
   const [selRace, setSelRace] = useState(null);
+  // ── Multi-carrera ──────────────────────────────────────────────────────────
+  const [selectedRaces, setSelectedRaces] = useState([]); // array de carreras seleccionadas
+  const [isMultiRaceMode, setIsMultiRaceMode] = useState(false);
+  const [recalibrating, setRecalibrating] = useState(false);
+  const [recalibrationData, setRecalibrationData] = useState(null); // diagnóstico y ajuste post-carrera
+  const [planStartDate, setPlanStartDate] = useState(new Date()); // fecha inicio del plan
+  // ──────────────────────────────────────────────────────────────────────────
   const [selPlan, setSelPlan] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState("");
@@ -1605,7 +1614,142 @@ export default function RunnerAI() {
     setGenPlan(false);
   };
 
-  const handlePhotoSelect = (file) => {
+  // ── Generación de plan multi-carrera ──────────────────────────────────────
+  const genMultiRacePlan = async (races, currentUser = user) => {
+    if (!races || races.length === 0) return;
+    setGenPlan(true);
+    setView("training");
+    setActiveWeek(0);
+    setPlanStartDate(new Date());
+
+    const activeProfile = pForm.weight ? pForm : profile;
+    const paceZones = activeProfile?.time1600
+      ? calcPaceZones(activeProfile.time1600)
+      : null;
+    const prompt = buildMultiRacePrompt(races, activeProfile, paceZones);
+    const mainRace = [...races].sort(
+      (a, b) => new Date(a.date) - new Date(b.date)
+    )[races.length - 1];
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: currentEngine.model,
+          max_tokens: 8000,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+      const d = await res.json();
+      let text =
+        d?.content?.[0]?.text ||
+        d?.choices?.[0]?.message?.content ||
+        JSON.stringify(d || {});
+      text = String(text || "")
+        .replace(/```(?:json)?\n?|```/g, "")
+        .trim();
+      const objMatch = text.match(/\{[\s\S]*\}/);
+      const plan = JSON.parse(objMatch ? objMatch[0] : text);
+
+      const full = {
+        ...plan,
+        race: mainRace,
+        races,
+        isMultiRace: true,
+        paceZones,
+        weeksAvailable: plan.semanas?.length || 0,
+      };
+      setTrainPlan(full);
+      setIsMultiRaceMode(true);
+      trackEvent("multi_plan_generated", { raceCount: races.length });
+
+      if (currentUser) {
+        const docId = `multi_${Date.now()}`;
+        const createdAt = new Date().toISOString();
+        await fbSet(
+          `plans_${currentUser.uid}`,
+          docId,
+          {
+            id: docId,
+            race: JSON.stringify(mainRace),
+            races: JSON.stringify(races),
+            plan: JSON.stringify(plan),
+            createdAt,
+            isMultiRace: true,
+          },
+          currentUser.token
+        ).catch(() => null);
+        setPlans((prev) => [
+          { id: docId, race: mainRace, races, plan, createdAt, isMultiRace: true },
+          ...prev,
+        ]);
+      }
+    } catch (err) {
+      console.error("[genMultiRacePlan] error:", err);
+      setTrainPlan({ error: true, race: mainRace });
+    }
+    setGenPlan(false);
+  };
+
+  // ── Recalibración post-carrera control ───────────────────────────────────
+  const recalibratePlan = async (controlRace, postRaceData) => {
+    if (!trainPlan || !trainPlan.races) return;
+    setRecalibrating(true);
+
+    const mainRace = trainPlan.race;
+    const remainingWeeks = trainPlan.semanas.length - activeWeek - 1;
+    if (remainingWeeks <= 0) {
+      setRecalibrating(false);
+      return;
+    }
+
+    const activeProfile = pForm.weight ? pForm : profile;
+    const prompt = buildRecalibrationPrompt(
+      mainRace,
+      controlRace,
+      postRaceData,
+      remainingWeeks,
+      activeProfile,
+      trainPlan
+    );
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: currentEngine.model,
+          max_tokens: 6000,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+      const d = await res.json();
+      let text =
+        d?.content?.[0]?.text ||
+        d?.choices?.[0]?.message?.content ||
+        JSON.stringify(d || {});
+      text = String(text || "")
+        .replace(/```(?:json)?\n?|```/g, "")
+        .trim();
+      const objMatch = text.match(/\{[\s\S]*\}/);
+      const result = JSON.parse(objMatch ? objMatch[0] : text);
+
+      setRecalibrationData(result.recalibracion);
+      const newPlan = mergeRecalibratedWeeks(
+        trainPlan,
+        result.semanas || [],
+        activeWeek + 1
+      );
+      setTrainPlan(newPlan);
+      trackEvent("plan_recalibrated", { controlRace: controlRace.name });
+    } catch (err) {
+      console.error("[recalibratePlan] error:", err);
+    }
+    setRecalibrating(false);
+  };
+
+
     if (!file) return;
     setPrPhoto(file);
     setPrPreview(URL.createObjectURL(file));
@@ -1826,30 +1970,230 @@ export default function RunnerAI() {
     </>
   );
 
-  const renderCalendar = () => (
-    <div className="pw">
-      <button className="back" onClick={() => setView("home")}>
-        ← Inicio
-      </button>
-      <div className="sh" style={{ marginBottom: 28 }}>
-        <h1 className="st">
-          CALENDARIO <span>2025</span>
-        </h1>
-      </div>
-      <div className="rgrid">
-        {RACES.map((r) => (
-          <RaceCard
-            key={r.id}
-            race={r}
-            onClick={() => {
-              setSelRace(r);
-              setView("race");
+  const renderCalendar = () => {
+    const toggleRaceSelection = (race) => {
+      setSelectedRaces((prev) => {
+        const exists = prev.find((r) => r.id === race.id);
+        if (exists) return prev.filter((r) => r.id !== race.id);
+        return [...prev, race];
+      });
+    };
+
+    const handleGenMultiRace = async () => {
+      if (selectedRaces.length < 1) return;
+      if (selectedRaces.length === 1) {
+        handleGenerateClick(selectedRaces[0]);
+        return;
+      }
+      // Verificar perfil
+      const hasMinProfile = !!(pForm.weight && pForm.height);
+      if (!hasMinProfile) {
+        setOnboardingStep(1);
+        setView("onboarding");
+        return;
+      }
+      if (!user) {
+        setOnboardingStep(2);
+        setView("onboarding");
+        return;
+      }
+      if (!activeSubscription && plans.length >= 3) {
+        setPaymentError("Has alcanzado 3 planes gratis. Activá ILIMITADO para generar más.");
+        setView("plans");
+        return;
+      }
+      await genMultiRacePlan(selectedRaces, user);
+    };
+
+    return (
+      <div className="pw">
+        <button className="back" onClick={() => setView("home")}>
+          ← Inicio
+        </button>
+        <div className="sh" style={{ marginBottom: 12 }}>
+          <h1 className="st">
+            CALENDARIO <span>2025</span>
+          </h1>
+        </div>
+
+        {/* Banner de selección múltiple */}
+        <div
+          style={{
+            background: "var(--bg2)",
+            border: "1px solid var(--bd)",
+            borderRadius: 12,
+            padding: "14px 18px",
+            marginBottom: 20,
+          }}
+        >
+          <div
+            style={{
+              fontSize: ".72rem",
+              color: "var(--or)",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              marginBottom: 8,
             }}
-          />
-        ))}
+          >
+            Plan evolutivo multi-carrera
+          </div>
+          <p style={{ fontSize: ".85rem", color: "var(--mu)", marginBottom: 12 }}>
+            Seleccioná <strong style={{ color: "var(--tx)" }}>una o más carreras</strong> para
+            generar un plan unificado. Las intermedias se tratan como escalones de preparación,
+            no como eventos aislados.
+          </p>
+
+          {selectedRaces.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div
+                style={{
+                  fontSize: ".72rem",
+                  color: "var(--mu)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: 6,
+                }}
+              >
+                Seleccionadas ({selectedRaces.length}):
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {[...selectedRaces]
+                  .sort((a, b) => new Date(a.date) - new Date(b.date))
+                  .map((r, i) => {
+                    const isMain =
+                      r.id ===
+                      [...selectedRaces].sort(
+                        (a, b) => new Date(b.date) - new Date(a.date)
+                      )[0].id;
+                    return (
+                      <div
+                        key={r.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "5px 10px",
+                          borderRadius: 20,
+                          background: isMain
+                            ? "rgba(255,69,0,.15)"
+                            : "rgba(255,255,255,.05)",
+                          border: `1px solid ${isMain ? "rgba(255,69,0,.4)" : "var(--bd)"}`,
+                          fontSize: ".78rem",
+                        }}
+                      >
+                        <span>{r.image}</span>
+                        <span style={{ color: isMain ? "var(--or)" : "var(--tx)" }}>
+                          {r.name}
+                        </span>
+                        <span style={{ color: "var(--mu)" }}>·</span>
+                        <span style={{ color: "var(--mu)" }}>{r.distance}</span>
+                        {isMain && selectedRaces.length > 1 && (
+                          <span
+                            style={{
+                              fontSize: ".65rem",
+                              color: "var(--or)",
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            objetivo
+                          </span>
+                        )}
+                        <button
+                          onClick={() => toggleRaceSelection(r)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--mu)",
+                            cursor: "pointer",
+                            fontSize: ".75rem",
+                            padding: "0 0 0 2px",
+                            lineHeight: 1,
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              className="btnp"
+              disabled={selectedRaces.length === 0}
+              style={{ opacity: selectedRaces.length === 0 ? 0.4 : 1 }}
+              onClick={handleGenMultiRace}
+            >
+              {selectedRaces.length <= 1
+                ? "🤖 Generar plan"
+                : `🤖 Generar plan evolutivo (${selectedRaces.length} carreras)`}
+            </button>
+            {selectedRaces.length > 0 && (
+              <button
+                className="btns"
+                onClick={() => setSelectedRaces([])}
+              >
+                Limpiar selección
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="rgrid">
+          {RACES.map((r) => {
+            const isSelected = !!selectedRaces.find((s) => s.id === r.id);
+            return (
+              <div key={r.id} style={{ position: "relative" }}>
+                {/* Checkbox de selección */}
+                <div
+                  onClick={() => toggleRaceSelection(r)}
+                  style={{
+                    position: "absolute",
+                    top: 10,
+                    right: 10,
+                    zIndex: 3,
+                    width: 22,
+                    height: 22,
+                    borderRadius: 6,
+                    border: `2px solid ${isSelected ? "var(--or)" : "var(--bd)"}`,
+                    background: isSelected ? "var(--or)" : "var(--bg3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    transition: ".15s",
+                    fontSize: "12px",
+                    color: "#fff",
+                  }}
+                >
+                  {isSelected && "✓"}
+                </div>
+                <div
+                  style={{
+                    outline: isSelected ? "2px solid var(--or)" : "none",
+                    outlineOffset: -1,
+                    borderRadius: 12,
+                  }}
+                >
+                  <RaceCard
+                    race={r}
+                    onClick={() => {
+                      setSelRace(r);
+                      setView("race");
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderRace = () => {
     const race = selRace;
@@ -2006,6 +2350,22 @@ export default function RunnerAI() {
           <button className="btnp" onClick={() => handleGenerateClick(race)}>
             🤖 Generar plan IA
           </button>
+          <button
+            className="btns"
+            style={{ borderColor: "rgba(255,69,0,.4)", color: "var(--or)" }}
+            onClick={() => {
+              // Agregar esta carrera a la selección y ir al calendario
+              setSelectedRaces((prev) => {
+                const exists = prev.find((r) => r.id === race.id);
+                if (exists) return prev;
+                return [...prev, race];
+              });
+              setView("calendar");
+            }}
+          >
+            + Agregar a plan multi-carrera
+          </button>
+
           <button
             className="btns"
             onClick={() => {
@@ -2902,17 +3262,139 @@ export default function RunnerAI() {
             {validacion}
           </div>
         )}
-        <div className="wtabs">
-          {semanas.map((s, i) => (
-            <button
-              key={i}
-              className={`wtab ${activeWeek === i ? "act" : ""}`}
-              onClick={() => setActiveWeek(i)}
+        {/* ── Timeline visual con hitos de carrera ── */}
+        <CalendarTimeline
+          weeks={semanas}
+          activeWeek={activeWeek}
+          onWeekChange={setActiveWeek}
+          races={trainPlan.races || (trainPlan.race ? [trainPlan.race] : [])}
+          startDate={planStartDate}
+        />
+
+        {/* Indicador de carrera control en semana actual */}
+        {sem.carrera_control && (
+          <div
+            style={{
+              margin: "0 0 14px",
+              padding: "12px 16px",
+              background: "rgba(255,69,0,.1)",
+              border: "1px solid rgba(255,69,0,.35)",
+              borderRadius: 10,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: ".72rem",
+                  color: "var(--or)",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: 3,
+                }}
+              >
+                🏁 Carrera control esta semana
+              </div>
+              <div style={{ fontSize: ".88rem", fontWeight: 600 }}>
+                {sem.carrera_control}
+              </div>
+              <div style={{ fontSize: ".78rem", color: "var(--mu)", marginTop: 3 }}>
+                Reducción de volumen aplicada · No hay tapering completo
+              </div>
+            </div>
+            {trainPlan.isMultiRace && (
+              <button
+                className="btns"
+                style={{ fontSize: ".78rem", padding: "7px 14px" }}
+                onClick={() => {
+                  const ctrl = (trainPlan.races || []).find(
+                    (r) =>
+                      r.name.toLowerCase().includes(
+                        (sem.carrera_control || "").toLowerCase().slice(0, 10)
+                      )
+                  );
+                  if (ctrl) {
+                    setSelRace(ctrl);
+                    setView("postrace");
+                  } else {
+                    setView("postrace");
+                  }
+                }}
+              >
+                📸 Registrar resultado →
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Diagnóstico de recalibración si existe */}
+        {recalibrationData && (
+          <div
+            style={{
+              margin: "0 0 14px",
+              padding: "14px 18px",
+              background: "rgba(255,215,0,.05)",
+              border: "1px solid rgba(255,215,0,.25)",
+              borderRadius: 10,
+            }}
+          >
+            <div
+              style={{
+                fontSize: ".72rem",
+                color: "var(--gold)",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: 8,
+              }}
             >
-              Sem {s.numero}
+              🔄 Plan recalibrado post-carrera
+            </div>
+            <div style={{ fontSize: ".85rem", color: "var(--mu)", marginBottom: 6 }}>
+              <strong style={{ color: "var(--tx)" }}>Diagnóstico:</strong>{" "}
+              {recalibrationData.diagnostico}
+            </div>
+            <div style={{ fontSize: ".85rem", color: "var(--mu)", marginBottom: recalibrationData.alerta ? 6 : 0 }}>
+              <strong style={{ color: "var(--tx)" }}>Ajuste:</strong>{" "}
+              {recalibrationData.ajuste}
+            </div>
+            {recalibrationData.alerta && (
+              <div
+                style={{
+                  marginTop: 8,
+                  padding: "8px 12px",
+                  background: "rgba(239,68,68,.1)",
+                  border: "1px solid rgba(239,68,68,.25)",
+                  borderRadius: 6,
+                  fontSize: ".82rem",
+                  color: "#ef4444",
+                }}
+              >
+                ⚠️ {recalibrationData.alerta}
+              </div>
+            )}
+            <button
+              style={{
+                marginTop: 10,
+                background: "none",
+                border: "none",
+                color: "var(--mu)",
+                fontSize: ".75rem",
+                cursor: "pointer",
+                padding: 0,
+              }}
+              onClick={() => setRecalibrationData(null)}
+            >
+              Ocultar diagnóstico ✕
             </button>
-          ))}
-        </div>
+          </div>
+        )}
+
         {sem.sesiones && (
           <div className="wcont">
             <div className="wobj">
@@ -3196,6 +3678,27 @@ export default function RunnerAI() {
             >
               Hablar con el coach →
             </button>
+            {/* Botón de recalibración — solo si hay un plan multi-carrera activo */}
+            {trainPlan?.isMultiRace && selRace && (
+              <button
+                className="btns"
+                disabled={recalibrating}
+                style={{
+                  borderColor: recalibrating ? "var(--bd)" : "var(--gold)",
+                  color: recalibrating ? "var(--mu)" : "var(--gold)",
+                }}
+                onClick={() => {
+                  recalibratePlan(selRace, {
+                    tiempo: postRaceExtra.tiempo,
+                    sensacion: postRaceExtra.sensacion,
+                    comentarios: postRaceExtra.comentarios,
+                  });
+                  setView("training");
+                }}
+              >
+                {recalibrating ? "Recalibrando plan..." : "🔄 Recalibrar plan siguiente →"}
+              </button>
+            )}
           </div>
         </div>
       )}
