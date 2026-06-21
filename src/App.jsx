@@ -1749,7 +1749,7 @@ export default function RunnerAI() {
     setRecalibrating(false);
   };
 
-
+  const handlePhotoSelect = (file) => {
     if (!file) return;
     setPrPhoto(file);
     setPrPreview(URL.createObjectURL(file));
