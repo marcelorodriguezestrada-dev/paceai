@@ -3139,6 +3139,49 @@ export default function RunnerAI() {
           {race?.name} · {race?.distance}
           {wk ? ` · ${wk} semanas` : ""}
         </div>
+
+        {/* Rango de fechas del plan */}
+        {(() => {
+          const today = planStartDate || new Date();
+          const endDate = race?.date ? new Date(race.date) : null;
+          const totalSem = semanas.length || wk || 0;
+          const planEnd = endDate || new Date(today.getTime() + totalSem * 7 * 24 * 60 * 60 * 1000);
+          const fmt = (d) => d.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+          const daysLeft = endDate ? Math.max(0, Math.ceil((endDate - new Date()) / 86400000)) : null;
+          return (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginTop: 10,
+              padding: "10px 14px",
+              background: "rgba(255,69,0,.06)",
+              border: "1px solid rgba(255,69,0,.15)",
+              borderRadius: 8,
+              flexWrap: "wrap",
+            }}>
+              <span style={{ fontSize: ".8rem", color: "var(--mu)" }}>
+                📅 <strong style={{ color: "var(--tx)" }}>{fmt(today)}</strong>
+                <span style={{ margin: "0 6px", color: "var(--bd)" }}>→</span>
+                <strong style={{ color: "var(--or)" }}>{fmt(planEnd)}</strong>
+              </span>
+              {daysLeft !== null && (
+                <span style={{
+                  marginLeft: "auto",
+                  fontSize: ".78rem",
+                  fontWeight: 700,
+                  color: daysLeft <= 14 ? "#ef4444" : daysLeft <= 30 ? "#f59e0b" : "var(--or)",
+                  background: daysLeft <= 14 ? "rgba(239,68,68,.1)" : "rgba(255,69,0,.08)",
+                  padding: "3px 10px",
+                  borderRadius: 20,
+                }}>
+                  {daysLeft === 0 ? "¡Es hoy!" : `${daysLeft} días para la carrera`}
+                </span>
+              )}
+            </div>
+          );
+        })()}
+
         {user && (
           <div style={{ marginTop: 8 }}>
             <span className="saved-badge">✓ Guardado en Firebase</span>
