@@ -1,16 +1,6 @@
 import { useState, useEffect } from "react";
 
-/**
- * AdminPanel — Panel de analytics para el autor de PaceAI
- *
- * Cómo activarlo: agregar al VIEWS en App.jsx:
- *   admin: () => user?.email === "TU_EMAIL_AQUI" ? <AdminPanel user={user} FB={FB} /> : null
- *
- * Los eventos globales se guardan en la colección "analytics_global" en Firestore.
- * Para eso, trackEvent() debe también escribir ahí (ver instrucciones al final).
- */
-
-const ADMIN_EMAIL = "marcelorodriguezestrada@gmail.com"; // ← cambiá por tu email
+const ADMIN_EMAIL = "marcelorodriguezestrada@gmail.com";
 
 // ── Helpers Firestore ────────────────────────────────────────────────────────
 const fsBase = (projectId, col, doc = "") =>
@@ -90,7 +80,7 @@ function EventRow({ event }) {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "120px 160px 1fr",
+      gridTemplateColumns: "120px 160px 1fr 80px",
       gap: 10,
       padding: "8px 0",
       borderBottom: "1px solid #1a1a1a",
@@ -113,6 +103,22 @@ function EventRow({ event }) {
       </span>
       <span style={{ color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {event.view || ""} {event.data ? `· ${event.data}` : ""}
+      </span>
+      {/* ── NUEVO: badge de fuente UTM ── */}
+      <span style={{
+        padding: "2px 7px",
+        borderRadius: 20,
+        fontSize: ".65rem",
+        fontWeight: 700,
+        background: event.utm_source && event.utm_source !== "directo"
+          ? "rgba(225,48,108,.15)" : "rgba(255,255,255,.05)",
+        color: event.utm_source && event.utm_source !== "directo"
+          ? "#E1306C" : "#444",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+      }}>
+        {event.utm_source || "directo"}
       </span>
     </div>
   );
@@ -140,15 +146,10 @@ export default function AdminPanel({ user, projectId }) {
   const loadData = async () => {
     setRefreshing(true);
     try {
-      // Eventos globales
       const evts = await fbListAll(pid, "analytics_global", user.token).catch(() => []);
       setEvents(evts.sort((a, b) => new Date(b.ts) - new Date(a.ts)));
-
-      // Usuarios registrados (colección "users")
       const usrs = await fbListAll(pid, "users", user.token).catch(() => []);
       setUsers(usrs);
-
-      // Suscripciones — buscamos en la colección global
       const subsData = await fbListAll(pid, "subscriptions_global", user.token).catch(() => []);
       setSubs(subsData);
     } catch (err) {
@@ -184,11 +185,9 @@ export default function AdminPanel({ user, projectId }) {
     .filter(s => s.status === "active")
     .reduce((acc, s) => acc + (Number(s.amount) || 0), 0);
 
-  // Eventos últimas 24h
   const now = Date.now();
   const last24h = events.filter(e => now - new Date(e.ts) < 86400000).length;
 
-  // Top races
   const raceCounts = events
     .filter(e => e.event === "generate_click" && e.data)
     .reduce((acc, e) => {
@@ -207,12 +206,55 @@ export default function AdminPanel({ user, projectId }) {
   const maxViewCount = Math.max(...Object.values(viewCounts), 1);
   const maxEventCount = Math.max(...Object.values(eventCounts), 1);
 
+  // ── NUEVO: métricas UTM ──
+  const sourceCounts = events.reduce((acc, e) => {
+    const src = e.utm_source || "directo";
+    acc[src] = (acc[src] || 0) + 1;
+    return acc;
+  }, {});
+
+  const mediumCounts = events.reduce((acc, e) => {
+    const med = e.utm_medium || "ninguno";
+    acc[med] = (acc[med] || 0) + 1;
+    return acc;
+  }, {});
+
+  const campaignCounts = events.reduce((acc, e) => {
+    const cam = e.utm_campaign || "ninguna";
+    acc[cam] = (acc[cam] || 0) + 1;
+    return acc;
+  }, {});
+
+  const maxSrc = Math.max(...Object.values(sourceCounts), 1);
+  const maxMed = Math.max(...Object.values(mediumCounts), 1);
+  const maxCam = Math.max(...Object.values(campaignCounts), 1);
+
+  const utmColorMap = {
+    instagram: "#E1306C",
+    facebook: "#1877F2",
+    tiktok: "#69C9D0",
+    whatsapp: "#25D366",
+    twitter: "#1DA1F2",
+    directo: "#555555",
+    ninguno: "#333333",
+    ninguna: "#333333",
+  };
+
+  // Usuarios únicos por fuente
+  const uniqueBySource = events.reduce((acc, e) => {
+    const src = e.utm_source || "directo";
+    if (!acc[src]) acc[src] = new Set();
+    if (e.userId && e.userId !== "anonymous") acc[src].add(e.userId);
+    return acc;
+  }, {});
+
   const TABS = [
     { id: "overview", label: "📊 Overview" },
-    { id: "funnel", label: "🔽 Funnel" },
-    { id: "races", label: "🏃 Carreras" },
-    { id: "events", label: "📋 Eventos" },
-    { id: "users", label: "👥 Usuarios" },
+    { id: "funnel",   label: "🔽 Funnel" },
+    { id: "sources",  label: "🌐 Fuentes" },   // ← NUEVO
+    { id: "races",    label: "🏃 Carreras" },
+    { id: "events",   label: "📋 Eventos" },
+    { id: "users",    label: "👥 Usuarios" },
   ];
 
   if (loading) return (
@@ -267,6 +309,14 @@ export default function AdminPanel({ user, projectId }) {
         <KpiCard icon="🤖" label="Planes generados" value={plansGenerated} sub={`${conversionRate}% de los clicks`} color="#22c55e" />
         <KpiCard icon="💳" label="Suscripciones activas" value={activeSubs} sub={revenue > 0 ? `ARS ${revenue.toLocaleString()} MRR` : "sin pagos aún"} color="#FFD700" />
         <KpiCard icon="❌" label="Errores de plan" value={eventCounts["plan_error"] || 0} sub="al generar con IA" color="#ef4444" />
+        {/* NUEVO KPI: fuente top */}
+        <KpiCard
+          icon="🌐"
+          label="Fuente top"
+          value={Object.entries(sourceCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || "—"}
+          sub={`${Object.entries(sourceCounts).sort((a,b) => b[1]-a[1])[0]?.[1] || 0} eventos`}
+          color="#E1306C"
+        />
       </div>
 
       {/* Tabs */}
@@ -349,6 +399,122 @@ export default function AdminPanel({ user, projectId }) {
         </div>
       )}
 
+      {/* ── TAB: FUENTES (NUEVO) ── */}
+      {tab === "sources" && (
+        <div style={{ display: "grid", gap: 18 }}>
+
+          {/* Cards resumen por red */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
+            {Object.entries(sourceCounts).sort((a,b) => b[1]-a[1]).map(([src, count]) => (
+              <div key={src} style={{
+                background: "#111",
+                border: `1px solid ${(utmColorMap[src] || "#444")}33`,
+                borderRadius: 12,
+                padding: "14px 16px",
+              }}>
+                <div style={{ fontSize: ".7rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                  {src}
+                </div>
+                <div style={{ fontFamily: "'Anton', sans-serif", fontSize: "1.8rem", color: utmColorMap[src] || "#FF4500", lineHeight: 1 }}>
+                  {count}
+                </div>
+                <div style={{ fontSize: ".72rem", color: "#444", marginTop: 3 }}>
+                  {uniqueBySource[src]?.size || 0} usuarios únicos
+                </div>
+              </div>
+            ))}
+            {Object.keys(sourceCounts).length === 0 && (
+              <div style={{ color: "#444", fontSize: ".85rem", gridColumn: "1/-1", padding: "20px 0" }}>
+                Sin datos UTM aún. Usá los links con ?utm_source= para empezar a rastrear.
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 18 }}>
+            {/* Por red social */}
+            <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: ".72rem", color: "#E1306C", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+                Por red social
+              </div>
+              {Object.entries(sourceCounts).sort((a,b) => b[1]-a[1]).map(([src, count]) => (
+                <MiniBar key={src} label={src} value={count} max={maxSrc} color={utmColorMap[src] || "#FF4500"} />
+              ))}
+              {Object.keys(sourceCounts).length === 0 && <div style={{ color: "#444", fontSize: ".82rem" }}>Sin datos aún</div>}
+            </div>
+
+            {/* Por medio */}
+            <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: ".72rem", color: "#8b5cf6", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+                Por medio
+              </div>
+              {Object.entries(mediumCounts).sort((a,b) => b[1]-a[1]).map(([med, count]) => (
+                <MiniBar key={med} label={med} value={count} max={maxMed} color="#8b5cf6" />
+              ))}
+              {Object.keys(mediumCounts).length === 0 && <div style={{ color: "#444", fontSize: ".82rem" }}>Sin datos aún</div>}
+            </div>
+
+            {/* Por campaña */}
+            <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: ".72rem", color: "#f59e0b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+                Por campaña
+              </div>
+              {Object.entries(campaignCounts).sort((a,b) => b[1]-a[1]).map(([cam, count]) => (
+                <MiniBar key={cam} label={cam} value={count} max={maxCam} color="#f59e0b" />
+              ))}
+              {Object.keys(campaignCounts).length === 0 && <div style={{ color: "#444", fontSize: ".82rem" }}>Sin datos aún</div>}
+            </div>
+          </div>
+
+          {/* Links UTM listos para copiar */}
+          <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 20 }}>
+            <div style={{ fontSize: ".72rem", color: "#FF4500", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+              Links UTM listos para copiar
+            </div>
+            {[
+              { label: "Instagram Bio",    url: "https://paceia.ezeti.pro?utm_source=instagram&utm_medium=bio&utm_campaign=lanzamiento",    color: "#E1306C" },
+              { label: "Instagram Story",  url: "https://paceia.ezeti.pro?utm_source=instagram&utm_medium=story&utm_campaign=lanzamiento",  color: "#E1306C" },
+              { label: "Instagram Reel",   url: "https://paceia.ezeti.pro?utm_source=instagram&utm_medium=reel&utm_campaign=lanzamiento",   color: "#E1306C" },
+              { label: "Facebook Post",    url: "https://paceia.ezeti.pro?utm_source=facebook&utm_medium=post&utm_campaign=lanzamiento",    color: "#1877F2" },
+              { label: "WhatsApp",         url: "https://paceia.ezeti.pro?utm_source=whatsapp&utm_medium=mensaje&utm_campaign=lanzamiento", color: "#25D366" },
+              { label: "TikTok Bio",       url: "https://paceia.ezeti.pro?utm_source=tiktok&utm_medium=bio&utm_campaign=lanzamiento",       color: "#69C9D0" },
+            ].map(({ label, url, color }) => (
+              <div key={label} style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "10px 0",
+                borderBottom: "1px solid #1a1a1a",
+                flexWrap: "wrap",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                  <span style={{ fontSize: ".82rem", color: "#ccc", minWidth: 120 }}>{label}</span>
+                </div>
+                <code style={{ fontSize: ".72rem", color: "#555", flex: 1, wordBreak: "break-all" }}>{url}</code>
+                <button
+                  onClick={() => navigator.clipboard.writeText(url)}
+                  style={{
+                    background: "rgba(255,69,0,.1)",
+                    border: "1px solid rgba(255,69,0,.3)",
+                    color: "#FF4500",
+                    padding: "4px 12px",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    fontSize: ".72rem",
+                    fontWeight: 700,
+                    fontFamily: "'DM Sans', sans-serif",
+                    flexShrink: 0,
+                  }}
+                >
+                  Copiar
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── TAB: Carreras ── */}
       {tab === "races" && (
         <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 24 }}>
@@ -373,12 +539,7 @@ export default function AdminPanel({ user, projectId }) {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: ".85rem", color: "#ccc", marginBottom: 4 }}>{name}</div>
                   <div style={{ height: 5, background: "#1a1a1a", borderRadius: 3 }}>
-                    <div style={{
-                      height: "100%",
-                      width: `${(count / maxRaceCount) * 100}%`,
-                      background: "#FF4500",
-                      borderRadius: 3,
-                    }} />
+                    <div style={{ height: "100%", width: `${(count / maxRaceCount) * 100}%`, background: "#FF4500", borderRadius: 3 }} />
                   </div>
                 </div>
                 <div style={{ fontFamily: "'Anton', sans-serif", fontSize: "1.2rem", color: "#FF4500", minWidth: 30, textAlign: "right" }}>
@@ -399,15 +560,8 @@ export default function AdminPanel({ user, projectId }) {
             </div>
             <div style={{ fontSize: ".78rem", color: "#555" }}>{events.length} total</div>
           </div>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "120px 160px 1fr",
-            gap: 10,
-            padding: "6px 0",
-            marginBottom: 6,
-            borderBottom: "1px solid #2a2a2a",
-          }}>
-            {["Fecha", "Evento", "Contexto"].map(h => (
+          <div style={{ display: "grid", gridTemplateColumns: "120px 160px 1fr 80px", gap: 10, padding: "6px 0", marginBottom: 6, borderBottom: "1px solid #2a2a2a" }}>
+            {["Fecha", "Evento", "Contexto", "Fuente"].map(h => (
               <span key={h} style={{ fontSize: ".68rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.08em" }}>{h}</span>
             ))}
           </div>
@@ -415,7 +569,7 @@ export default function AdminPanel({ user, projectId }) {
             {events.slice(0, 50).map((e, i) => <EventRow key={i} event={e} />)}
             {events.length === 0 && (
               <div style={{ color: "#444", fontSize: ".85rem", padding: "20px 0" }}>
-                Sin eventos aún. Los eventos se registran cuando los usuarios usan la app.
+                Sin eventos aún.
               </div>
             )}
           </div>
@@ -434,15 +588,9 @@ export default function AdminPanel({ user, projectId }) {
             <div style={{ display: "grid", gap: 10 }}>
               {users.map((u, i) => (
                 <div key={i} style={{
-                  background: "#0d0d0d",
-                  border: "1px solid #1a1a1a",
-                  borderRadius: 8,
-                  padding: "12px 16px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  flexWrap: "wrap",
+                  background: "#0d0d0d", border: "1px solid #1a1a1a", borderRadius: 8,
+                  padding: "12px 16px", display: "flex", justifyContent: "space-between",
+                  alignItems: "center", gap: 12, flexWrap: "wrap",
                 }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: ".88rem" }}>{u.name || "Sin nombre"}</div>
@@ -469,20 +617,14 @@ export default function AdminPanel({ user, projectId }) {
         </div>
       )}
 
-      {/* Nota de implementación */}
       <div style={{
-        marginTop: 28,
-        padding: "14px 18px",
-        background: "rgba(59,130,246,.05)",
-        border: "1px solid rgba(59,130,246,.15)",
-        borderRadius: 10,
-        fontSize: ".78rem",
-        color: "#555",
-        lineHeight: 1.6,
+        marginTop: 28, padding: "14px 18px",
+        background: "rgba(59,130,246,.05)", border: "1px solid rgba(59,130,246,.15)",
+        borderRadius: 10, fontSize: ".78rem", color: "#555", lineHeight: 1.6,
       }}>
-        <strong style={{ color: "#3b82f6" }}>Nota:</strong> Para que este panel vea todos los usuarios,
-        trackEvent() debe escribir también en <code style={{ color: "#888" }}>analytics_global</code> con el
-        campo <code style={{ color: "#888" }}>userId</code>. Ver instrucciones en el README.
+        <strong style={{ color: "#3b82f6" }}>Nota:</strong> Para ver fuentes en tiempo real,
+        asegurate de que <code style={{ color: "#888" }}>trackEvent()</code> en App.jsx incluya
+        los campos <code style={{ color: "#888" }}>utm_source</code>, <code style={{ color: "#888" }}>utm_medium</code> y <code style={{ color: "#888" }}>utm_campaign</code> leídos desde sessionStorage.
       </div>
     </div>
   );
