@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import CalendarTimeline from "./components/CalendarTimeline";
+import AdminPanel from "./components/AdminPanel";
 import { buildMultiRacePrompt, buildRecalibrationPrompt, mergeRecalibratedWeeks } from "./utils/multiRace";
 
 const FB = {
@@ -1315,23 +1316,18 @@ export default function RunnerAI() {
         ts: new Date().toISOString(),
         view: view || "unknown",
         ua: (navigator?.userAgent || "").slice(0, 80),
+        userId: user?.uid || "anonymous",
+        userEmail: user?.email || "anonymous",
       };
       if (user?.token) {
-        fbSet(
-          `analytics_${user.uid}`,
-          String(Date.now()),
-          event,
-          user.token,
-        ).catch(() => {});
+        // Guardar en colección propia del usuario
+        fbSet(`analytics_${user.uid}`, String(Date.now()), event, user.token).catch(() => {});
+        // Guardar en colección global para el panel del autor
+        fbSet("analytics_global", `${user.uid}_${Date.now()}`, event, user.token).catch(() => {});
       } else {
-        const stored = JSON.parse(
-          localStorage.getItem("paceai_events") || "[]",
-        );
+        const stored = JSON.parse(localStorage.getItem("paceai_events") || "[]");
         stored.push(event);
-        localStorage.setItem(
-          "paceai_events",
-          JSON.stringify(stored.slice(-30)),
-        );
+        localStorage.setItem("paceai_events", JSON.stringify(stored.slice(-30)));
       }
     } catch {}
   };
@@ -4417,6 +4413,7 @@ export default function RunnerAI() {
     tourism: renderTourism,
     myraces: renderMyRaces,
     onboarding: renderOnboarding,
+    admin: () => <AdminPanel user={user} projectId={FB.projectId} />,
   };
 
   return (
@@ -4464,6 +4461,15 @@ export default function RunnerAI() {
               onClick={() => setView("myraces")}
             >
               Mis Carreras
+            </button>
+          )}
+          {user?.email === "marcelorodriguezestrada@gmail.com" && (
+            <button
+              className={`nl ${view === "admin" ? "act" : ""}`}
+              onClick={() => setView("admin")}
+              style={{ color: view === "admin" ? "#FFD700" : "#555" }}
+            >
+              📊 Admin
             </button>
           )}
         </div>
