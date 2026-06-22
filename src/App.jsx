@@ -1144,12 +1144,15 @@ export default function RunnerAI() {
         }
       }
 // ── UTM Tracking ──────────────────────────────────────────────────────────
-const utmParams = {
-  utm_source: params.get("utm_source") || "directo",
-  utm_medium: params.get("utm_medium") || "ninguno",
-  utm_campaign: params.get("utm_campaign") || "ninguna",
-};
-sessionStorage.setItem("paceai_utm", JSON.stringify(utmParams));
+const params = new URLSearchParams(window.location.search);
+      // ── UTM Tracking ──────────────────────────────────────────────────────────
+      const utmParams = {
+        utm_source: params.get("utm_source") || "directo",
+        utm_medium: params.get("utm_medium") || "ninguno",
+        utm_campaign: params.get("utm_campaign") || "ninguna",
+      };
+      sessionStorage.setItem("paceai_utm", JSON.stringify(utmParams));
+      // ──────────────────────────────────────────────────────────────────────────
 // ──────────────────────────────────────────────────────────────────────────
       const params = new URLSearchParams(window.location.search);
       const payment = params.get("payment");
@@ -1318,8 +1321,6 @@ sessionStorage.setItem("paceai_utm", JSON.stringify(utmParams));
 
   // ─── Admin event tracking ──────────────────────────────────────────────
   const trackEvent = (eventName, data = {}) => {
-    try {
-      const trackEvent = (eventName, data = {}) => {
     try {
       const utm = JSON.parse(sessionStorage.getItem("paceai_utm") || "{}");
       const event = {
