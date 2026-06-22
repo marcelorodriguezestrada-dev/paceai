@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import CalendarTimeline from "./components/CalendarTimeline";
 import AdminPanel from "./components/AdminPanel";
+import DailyCoach from "./components/DailyCoach";
 import { buildMultiRacePrompt, buildRecalibrationPrompt, mergeRecalibratedWeeks } from "./utils/multiRace";
 
 const FB = {
@@ -1030,6 +1031,7 @@ export default function RunnerAI() {
   const [recalibrating, setRecalibrating] = useState(false);
   const [recalibrationData, setRecalibrationData] = useState(null); // diagnóstico y ajuste post-carrera
   const [planStartDate, setPlanStartDate] = useState(new Date()); // fecha inicio del plan
+  const [adjustedSession, setAdjustedSession] = useState(null); // sesión ajustada por el coach diario
   // ──────────────────────────────────────────────────────────────────────────
   const [selPlan, setSelPlan] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -3435,31 +3437,62 @@ export default function RunnerAI() {
         )}
 
         {sem.sesiones && (
+          <>
+            {/* ── Check-in diario del coach ── */}
+            {(() => {
+              // Detectar qué día de la semana es hoy dentro del plan
+              const planStart = planStartDate || new Date();
+              const daysElapsed = Math.floor((new Date() - planStart) / 86400000);
+              const todayWeekIdx = Math.floor(daysElapsed / 7);
+              const todayDayIdx = daysElapsed % 7; // 0=Lun ... 6=Dom
+              const isPlanActive = daysElapsed >= 0 && daysElapsed < (semanas.length * 7);
+              // Solo mostrar si estamos viendo la semana actual
+              const isCurrentWeek = isPlanActive && activeWeek === todayWeekIdx;
+              const todaySession = isCurrentWeek ? sem.sesiones[todayDayIdx] : null;
+              return (
+                <DailyCoach
+                  todaySession={todaySession}
+                  profile={profile || pForm}
+                  weekNumber={activeWeek + 1}
+                  onAdjust={(sessionAjustada) => setAdjustedSession(sessionAjustada)}
+                />
+              );
+            })()}
+          </>
+        )}
+
+        {sem.sesiones && (
           <div className="wcont">
             <div className="wobj">
               <strong>Objetivo:</strong> {sem.objetivo}
             </div>
-            {sem.sesiones.map((s, i) => (
-              <div key={i} className="srow">
-                <span className="sday">{s.dia}</span>
-                <span
-                  className="styp"
-                  style={{
-                    background: stColor(s.tipo) + "22",
-                    color: stColor(s.tipo),
-                  }}
-                >
-                  {s.tipo}
-                </span>
-                <span className="sdist">{s.distancia}</span>
-                <span className="sdesc">
-                  {s.descripcion}{" "}
-                  <span style={{ color: "var(--or)", fontWeight: 600 }}>
-                    {s.ritmo}
+            {sem.sesiones.map((s, i) => {
+              const planStart = planStartDate || new Date();
+              const daysElapsed = Math.floor((new Date() - planStart) / 86400000);
+              const todayWeekIdx = Math.floor(daysElapsed / 7);
+              const todayDayIdx = daysElapsed % 7;
+              const isPlanActive = daysElapsed >= 0 && daysElapsed < (semanas.length * 7);
+              const isToday = isPlanActive && activeWeek === todayWeekIdx && i === todayDayIdx;
+              const session = isToday && adjustedSession ? { ...s, ...adjustedSession } : s;
+              return (
+                <div key={i} className="srow" style={{
+                  background: isToday ? "rgba(34,197,94,.04)" : "transparent",
+                  borderLeft: isToday ? "3px solid #22c55e" : "3px solid transparent",
+                }}>
+                  <span className="sday" style={{ color: isToday ? "#22c55e" : "inherit", fontWeight: isToday ? 900 : 700 }}>
+                    {isToday ? "HOY" : session.dia}
                   </span>
-                </span>
-              </div>
-            ))}
+                  <span className="styp" style={{ background: stColor(session.tipo) + "22", color: stColor(session.tipo) }}>
+                    {session.tipo}{isToday && adjustedSession && <span style={{ marginLeft: 3, fontSize: ".65rem", color: "#f59e0b" }}>✎</span>}
+                  </span>
+                  <span className="sdist">{session.distancia}</span>
+                  <span className="sdesc">
+                    {session.descripcion}{" "}
+                    <span style={{ color: "var(--or)", fontWeight: 600 }}>{session.ritmo}</span>
+                  </span>
+                </div>
+              );
+            })}
             {sem.consejo && <div className="wtip">💡 {sem.consejo}</div>}
           </div>
         )}
