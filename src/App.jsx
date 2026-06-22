@@ -1143,7 +1143,14 @@ export default function RunnerAI() {
           console.warn("[auth] restore parse failed", err);
         }
       }
-
+// ── UTM Tracking ──────────────────────────────────────────────────────────
+const utmParams = {
+  utm_source: params.get("utm_source") || "directo",
+  utm_medium: params.get("utm_medium") || "ninguno",
+  utm_campaign: params.get("utm_campaign") || "ninguna",
+};
+sessionStorage.setItem("paceai_utm", JSON.stringify(utmParams));
+// ──────────────────────────────────────────────────────────────────────────
       const params = new URLSearchParams(window.location.search);
       const payment = params.get("payment");
       const collectionId = params.get("collection_id");
@@ -1312,6 +1319,9 @@ export default function RunnerAI() {
   // ─── Admin event tracking ──────────────────────────────────────────────
   const trackEvent = (eventName, data = {}) => {
     try {
+      const trackEvent = (eventName, data = {}) => {
+    try {
+      const utm = JSON.parse(sessionStorage.getItem("paceai_utm") || "{}");
       const event = {
         event: eventName,
         data: JSON.stringify(data),
@@ -1320,6 +1330,9 @@ export default function RunnerAI() {
         ua: (navigator?.userAgent || "").slice(0, 80),
         userId: user?.uid || "anonymous",
         userEmail: user?.email || "anonymous",
+        utm_source: utm.utm_source || "directo",
+        utm_medium: utm.utm_medium || "ninguno",
+        utm_campaign: utm.utm_campaign || "ninguna",
       };
       if (user?.token) {
         // Guardar en colección propia del usuario
