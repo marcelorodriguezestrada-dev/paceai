@@ -1154,7 +1154,7 @@ const params = new URLSearchParams(window.location.search);
       sessionStorage.setItem("paceai_utm", JSON.stringify(utmParams));
       // ──────────────────────────────────────────────────────────────────────────
 // ──────────────────────────────────────────────────────────────────────────
-      const params = new URLSearchParams(window.location.search);
+      
       const payment = params.get("payment");
       const collectionId = params.get("collection_id");
       const preferenceId = params.get("preference_id");
