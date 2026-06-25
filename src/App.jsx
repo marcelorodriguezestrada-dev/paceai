@@ -3,6 +3,7 @@ import CalendarTimeline from "./components/CalendarTimeline";
 import AdminPanel from "./components/AdminPanel";
 import DailyCoach from "./components/DailyCoach";
 import { buildMultiRacePrompt, buildRecalibrationPrompt, mergeRecalibratedWeeks } from "./utils/multiRace";
+import { generatePlanPDF } from "./utils/generatePDF";
 
 const FB = {
   apiKey: import.meta.env.VITE_FB_API_KEY || "TU_API_KEY",
@@ -423,11 +424,13 @@ const calcPaceZones = (time1600Str) => {
 const calcMacrocycle = (weeksAvailable, distanceStr) => {
   const dist = (distanceStr || "").toLowerCase();
   const is42 = dist.includes("42");
-  if (weeksAvailable >= 12) {
-    const base = Math.round(weeksAvailable * 0.34);
-    const spec = Math.round(weeksAvailable * 0.33);
-    const sharp = Math.round(weeksAvailable * 0.17);
-    const taper = Math.max(1, weeksAvailable - base - spec - sharp);
+  // Cap at 52 semanas para proyección anual
+  const weeks = Math.min(weeksAvailable, 52);
+  if (weeks >= 12) {
+    const base = Math.round(weeks * 0.34);
+    const spec = Math.round(weeks * 0.33);
+    const sharp = Math.round(weeks * 0.17);
+    const taper = Math.max(1, weeks - base - spec - sharp);
     return [
       {
         fase: "Base / Fuerza",
@@ -458,60 +461,18 @@ const calcMacrocycle = (weeksAvailable, distanceStr) => {
         volMax: is42 ? 45 : 32,
       },
     ];
-  } else if (weeksAvailable >= 8) {
+  } else if (weeks >= 8) {
     return [
-      {
-        fase: "Base / Fuerza",
-        semanas: 2,
-        enfoque: "Fondo + cuestas + fuerza core",
-        volMin: 35,
-        volMax: 55,
-      },
-      {
-        fase: "Específica",
-        semanas: Math.max(3, weeksAvailable - 5),
-        enfoque: "Series + Tempo",
-        volMin: 45,
-        volMax: 65,
-      },
-      {
-        fase: "Sharpening",
-        semanas: 2,
-        enfoque: "Velocidad + reducción",
-        volMin: 30,
-        volMax: 48,
-      },
-      {
-        fase: "Tapering",
-        semanas: 1,
-        enfoque: "Descanso activo",
-        volMin: 18,
-        volMax: 28,
-      },
+      { fase: "Base / Fuerza", semanas: 2, enfoque: "Fondo + cuestas + fuerza core", volMin: 35, volMax: 55 },
+      { fase: "Específica", semanas: Math.max(3, weeks - 5), enfoque: "Series + Tempo", volMin: 45, volMax: 65 },
+      { fase: "Sharpening", semanas: 2, enfoque: "Velocidad + reducción", volMin: 30, volMax: 48 },
+      { fase: "Tapering", semanas: 1, enfoque: "Descanso activo", volMin: 18, volMax: 28 },
     ];
   } else {
     return [
-      {
-        fase: "Activación",
-        semanas: Math.max(1, Math.floor(weeksAvailable * 0.4)),
-        enfoque: "Fondo suave + fuerza básica",
-        volMin: 28,
-        volMax: 45,
-      },
-      {
-        fase: "Específica compacta",
-        semanas: Math.max(1, Math.round(weeksAvailable * 0.4)),
-        enfoque: "Series cortas + Tempo",
-        volMin: 35,
-        volMax: 52,
-      },
-      {
-        fase: "Tapering",
-        semanas: Math.max(1, Math.ceil(weeksAvailable * 0.2)),
-        enfoque: "Descanso + preparación mental",
-        volMin: 15,
-        volMax: 28,
-      },
+      { fase: "Activación", semanas: Math.max(1, Math.floor(weeks * 0.4)), enfoque: "Fondo suave + fuerza básica", volMin: 28, volMax: 45 },
+      { fase: "Específica compacta", semanas: Math.max(1, Math.round(weeks * 0.4)), enfoque: "Series cortas + Tempo", volMin: 35, volMax: 52 },
+      { fase: "Tapering", semanas: Math.max(1, Math.ceil(weeks * 0.2)), enfoque: "Descanso + preparación mental", volMin: 15, volMax: 28 },
     ];
   }
 };
@@ -951,7 +912,7 @@ function RaceCard({ race, onClick }) {
   );
 }
 
-function PlanCard({ plan, onSelect, activePlanId }) {
+function PlanCard({ plan, onSelect, activePlanId, isAdmin }) {
   const isActive = activePlanId === plan.id;
   return (
     <div className={`pcard ${plan.popular ? "pop" : ""}`}>
@@ -986,8 +947,19 @@ function PlanCard({ plan, onSelect, activePlanId }) {
         onClick={() => !isActive && onSelect(plan)}
         disabled={isActive}
       >
-        {isActive ? "Plan activo" : plan.cta}
+        {isActive ? "Plan activo" : isAdmin && plan.id !== "basico" ? "🔑 Activar sin cobro" : plan.cta}
       </button>
+      {isAdmin && plan.id !== "basico" && !isActive && (
+        <div style={{
+          marginTop: 8,
+          fontSize: ".7rem",
+          color: "#FFD700",
+          textAlign: "center",
+          opacity: 0.7,
+        }}>
+          modo admin — sin pago real
+        </div>
+      )}
     </div>
   );
 }
@@ -996,6 +968,35 @@ function PlanCard({ plan, onSelect, activePlanId }) {
 
 export default function RunnerAI() {
   const [view, setView] = useState("home");
+
+  // navigate — wrapper de setView que trackea automáticamente cada cambio de pantalla
+  const navigate = (newView, data = {}) => {
+    setView(newView);
+    try {
+      const utm = JSON.parse(sessionStorage.getItem("paceai_utm") || "{}");
+      const event = {
+        event: "page_view",
+        data: JSON.stringify({ from: view, to: newView, ...data }),
+        ts: new Date().toISOString(),
+        view: newView,
+        ua: (navigator?.userAgent || "").slice(0, 80),
+        userId: user?.uid || "anonymous",
+        userEmail: user?.email || "anonymous",
+        sessionId: window.__paceai_session || (window.__paceai_session = `s_${Date.now()}`),
+        utm_source: utm.utm_source || "directo",
+        utm_medium: utm.utm_medium || "ninguno",
+        utm_campaign: utm.utm_campaign || "ninguna",
+      };
+      if (user?.token) {
+        fbSet(`analytics_${user.uid}`, `pv_${Date.now()}`, event, user.token).catch(() => {});
+        fbSet("analytics_global", `${user.uid}_pv_${Date.now()}`, event, user.token).catch(() => {});
+      } else {
+        const stored = JSON.parse(localStorage.getItem("paceai_events") || "[]");
+        stored.push(event);
+        localStorage.setItem("paceai_events", JSON.stringify(stored.slice(-50)));
+      }
+    } catch {}
+  };
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [pForm, setPForm] = useState({
@@ -1032,6 +1033,7 @@ export default function RunnerAI() {
   const [recalibrationData, setRecalibrationData] = useState(null); // diagnóstico y ajuste post-carrera
   const [planStartDate, setPlanStartDate] = useState(new Date()); // fecha inicio del plan
   const [adjustedSession, setAdjustedSession] = useState(null); // sesión ajustada por el coach diario
+  const [pdfLoading, setPdfLoading] = useState(false); // descarga de PDF en curso
   // ──────────────────────────────────────────────────────────────────────────
   const [selPlan, setSelPlan] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -1081,6 +1083,32 @@ export default function RunnerAI() {
   useEffect(() => {
     chatEnd.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs]);
+
+  // Tracking de tiempo en pantalla
+  useEffect(() => {
+    const start = Date.now();
+    return () => {
+      const seconds = Math.round((Date.now() - start) / 1000);
+      if (seconds < 1) return;
+      try {
+        const event = {
+          event: "time_on_screen",
+          data: JSON.stringify({ view, seconds }),
+          ts: new Date().toISOString(),
+          view,
+          userId: user?.uid || "anonymous",
+          sessionId: window.__paceai_session || "unknown",
+        };
+        if (user?.token) {
+          fbSet("analytics_global", `${user?.uid || "anon"}_ts_${Date.now()}`, event, user.token).catch(() => {});
+        } else {
+          const stored = JSON.parse(localStorage.getItem("paceai_events") || "[]");
+          stored.push(event);
+          localStorage.setItem("paceai_events", JSON.stringify(stored.slice(-50)));
+        }
+      } catch {}
+    };
+  }, [view]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1143,18 +1171,18 @@ export default function RunnerAI() {
           console.warn("[auth] restore parse failed", err);
         }
       }
-// ── UTM Tracking ──────────────────────────────────────────────────────────
-const params = new URLSearchParams(window.location.search);
-      // ── UTM Tracking ──────────────────────────────────────────────────────────
+
+      const params = new URLSearchParams(window.location.search);
+
+      // ── UTM Tracking ──────────────────────────────────────────────────────
       const utmParams = {
         utm_source: params.get("utm_source") || "directo",
         utm_medium: params.get("utm_medium") || "ninguno",
         utm_campaign: params.get("utm_campaign") || "ninguna",
       };
       sessionStorage.setItem("paceai_utm", JSON.stringify(utmParams));
-      // ──────────────────────────────────────────────────────────────────────────
-// ──────────────────────────────────────────────────────────────────────────
-      
+      // ──────────────────────────────────────────────────────────────────────
+
       const payment = params.get("payment");
       const collectionId = params.get("collection_id");
       const preferenceId = params.get("preference_id");
@@ -1299,10 +1327,10 @@ const params = new URLSearchParams(window.location.search);
     }
     if (autoUpdatePlan && user && trainPlan && trainPlan.race) {
       await genTrainPlan(trainPlan.race, user);
-      setView("training");
+      navigate("training");
       return;
     }
-    setView("home");
+    navigate("home");
   };
 
   const logout = () => {
@@ -1316,7 +1344,7 @@ const params = new URLSearchParams(window.location.search);
     setPlans([]);
     setActiveSubscription(null);
     setTrainPlan(null);
-    setView("home");
+    navigate("home");
   };
 
   // ─── Admin event tracking ──────────────────────────────────────────────
@@ -1334,6 +1362,7 @@ const params = new URLSearchParams(window.location.search);
         utm_source: utm.utm_source || "directo",
         utm_medium: utm.utm_medium || "ninguno",
         utm_campaign: utm.utm_campaign || "ninguna",
+        sessionId: window.__paceai_session || "unknown",
       };
       if (user?.token) {
         // Guardar en colección propia del usuario
@@ -1343,7 +1372,7 @@ const params = new URLSearchParams(window.location.search);
       } else {
         const stored = JSON.parse(localStorage.getItem("paceai_events") || "[]");
         stored.push(event);
-        localStorage.setItem("paceai_events", JSON.stringify(stored.slice(-30)));
+        localStorage.setItem("paceai_events", JSON.stringify(stored.slice(-50)));
       }
     } catch {}
   };
@@ -1445,18 +1474,58 @@ const params = new URLSearchParams(window.location.search);
     setPaymentLoading(false);
   };
 
+  const ADMIN_EMAIL = "marcelorodriguezestrada@gmail.com";
+  const isAdmin = user?.email === ADMIN_EMAIL;
+
+  const activateAdminPlan = async (plan) => {
+    setPaymentLoading(true);
+    setPaymentError("");
+    setPaymentSuccess("");
+    const subscription = {
+      planId: plan.id,
+      planName: plan.name,
+      amount: plan.amount,
+      currency: "ARS",
+      status: "active",
+      collectionId: `admin_test_${Date.now()}`,
+      preferenceId: `admin_pref_${Date.now()}`,
+      paymentType: "admin_bypass",
+      approvedAt: new Date().toISOString(),
+    };
+    if (user) {
+      await fbSet(
+        `subscriptions_${user.uid}`,
+        subscription.collectionId,
+        subscription,
+        user.token,
+      ).catch(() => null);
+    }
+    setActiveSubscription(subscription);
+    setSubscriptions((prev) => [subscription, ...prev]);
+    if (typeof window !== "undefined")
+      window.localStorage.setItem("paceai_subscription", JSON.stringify(subscription));
+    setPaymentSuccess(`✅ Plan ${plan.name} activado en modo admin (sin cobro).`);
+    setPaymentLoading(false);
+    trackEvent("admin_plan_activated", { planId: plan.id });
+  };
+
   const handlePlanSelect = async (plan) => {
     setSelPlan(plan);
     if (plan.id === "basico") {
       setPaymentSuccess("Seleccionaste el plan gratis. ¡A disfrutar!");
-      return setView("plans");
+      return navigate("plans");
     }
     if (activeSubscription && activeSubscription.planId === plan.id) {
       setPaymentSuccess(`Ya tenés el plan ${plan.name} activo.`);
-      return setView("plans");
+      return navigate("plans");
     }
     if (!user) {
       setShowAuth(true);
+      return;
+    }
+    // Admin bypass — activa el plan sin pasar por Mercado Pago
+    if (isAdmin) {
+      await activateAdminPlan(plan);
       return;
     }
     await buyPlan(plan);
@@ -1470,14 +1539,14 @@ const params = new URLSearchParams(window.location.search);
     const hasMinProfile = !!(pForm.weight && pForm.height);
     if (!hasMinProfile) {
       setOnboardingStep(1);
-      setView("onboarding");
+      navigate("onboarding");
       return;
     }
 
     // If profile exists but no login → go to auth step of onboarding
     if (!currentUser) {
       setOnboardingStep(2);
-      setView("onboarding");
+      navigate("onboarding");
       return;
     }
 
@@ -1498,7 +1567,7 @@ const params = new URLSearchParams(window.location.search);
         setPaymentError(
           "Has alcanzado 3 planes gratis. Activá ILIMITADO para generar más.",
         );
-        setView("plans");
+        navigate("plans");
         return;
       }
     }
@@ -1541,7 +1610,7 @@ const params = new URLSearchParams(window.location.search);
 
   const genTrainPlan = async (race, currentUser = user) => {
     setGenPlan(true);
-    setView("training");
+    navigate("training");
     setActiveWeek(0);
 
     // Build structured macrocycle prompt (Ortiguera / Rodríguez methodology)
@@ -1630,7 +1699,7 @@ const params = new URLSearchParams(window.location.search);
   const genMultiRacePlan = async (races, currentUser = user) => {
     if (!races || races.length === 0) return;
     setGenPlan(true);
-    setView("training");
+    navigate("training");
     setActiveWeek(0);
     setPlanStartDate(new Date());
 
@@ -1865,10 +1934,10 @@ const params = new URLSearchParams(window.location.search);
             vos.
           </p>
           <div className="hacts">
-            <button className="btnp" onClick={() => setView("calendar")}>
+            <button className="btnp" onClick={() => navigate("calendar")}>
               Ver carreras 2025
             </button>
-            <button className="btns" onClick={() => setView("coach")}>
+            <button className="btns" onClick={() => navigate("coach")}>
               Hablar con PaceAI
             </button>
           </div>
@@ -1950,7 +2019,7 @@ const params = new URLSearchParams(window.location.search);
           <h2 className="st">
             PRÓXIMAS <span>CARRERAS</span>
           </h2>
-          <button className="sall" onClick={() => setView("calendar")}>
+          <button className="sall" onClick={() => navigate("calendar")}>
             Ver todas →
           </button>
         </div>
@@ -1961,7 +2030,7 @@ const params = new URLSearchParams(window.location.search);
               race={r}
               onClick={() => {
                 setSelRace(r);
-                setView("race");
+                navigate("race");
               }}
             />
           ))}
@@ -1975,7 +2044,7 @@ const params = new URLSearchParams(window.location.search);
         </div>
         <div className="pgrid">
           {PLANS.map((p) => (
-            <PlanCard key={p.id} plan={p} onSelect={handlePlanSelect} />
+            <PlanCard key={p.id} plan={p} onSelect={handlePlanSelect} isAdmin={isAdmin} />
           ))}
         </div>
       </div>
@@ -2001,17 +2070,17 @@ const params = new URLSearchParams(window.location.search);
       const hasMinProfile = !!(pForm.weight && pForm.height);
       if (!hasMinProfile) {
         setOnboardingStep(1);
-        setView("onboarding");
+        navigate("onboarding");
         return;
       }
       if (!user) {
         setOnboardingStep(2);
-        setView("onboarding");
+        navigate("onboarding");
         return;
       }
       if (!activeSubscription && plans.length >= 3) {
         setPaymentError("Has alcanzado 3 planes gratis. Activá ILIMITADO para generar más.");
-        setView("plans");
+        navigate("plans");
         return;
       }
       await genMultiRacePlan(selectedRaces, user);
@@ -2019,7 +2088,7 @@ const params = new URLSearchParams(window.location.search);
 
     return (
       <div className="pw">
-        <button className="back" onClick={() => setView("home")}>
+        <button className="back" onClick={() => navigate("home")}>
           ← Inicio
         </button>
         <div className="sh" style={{ marginBottom: 12 }}>
@@ -2195,7 +2264,7 @@ const params = new URLSearchParams(window.location.search);
                     race={r}
                     onClick={() => {
                       setSelRace(r);
-                      setView("race");
+                      navigate("race");
                     }}
                   />
                 </div>
@@ -2218,7 +2287,7 @@ const params = new URLSearchParams(window.location.search);
     });
     return (
       <div className="pw" style={{ maxWidth: 700 }}>
-        <button className="back" onClick={() => setView("calendar")}>
+        <button className="back" onClick={() => navigate("calendar")}>
           ← Calendario
         </button>
         <div
@@ -2372,7 +2441,7 @@ const params = new URLSearchParams(window.location.search);
                 if (exists) return prev;
                 return [...prev, race];
               });
-              setView("calendar");
+              navigate("calendar");
             }}
           >
             + Agregar a plan multi-carrera
@@ -2381,7 +2450,7 @@ const params = new URLSearchParams(window.location.search);
           <button
             className="btns"
             onClick={() => {
-              setView("coach");
+              navigate("coach");
               sendMsg(
                 `Quiero prepararme para la ${race.name} (${race.distance}). Terreno: ${race.terrain}, clima: ${race.weather}.`,
               );
@@ -2392,7 +2461,7 @@ const params = new URLSearchParams(window.location.search);
           <button
             className="btns"
             onClick={() => {
-              setView("tourism");
+              navigate("tourism");
               loadTourism(race);
             }}
           >
@@ -2401,7 +2470,7 @@ const params = new URLSearchParams(window.location.search);
           <button
             className="btns"
             onClick={() => {
-              setView("postrace");
+              navigate("postrace");
               setSelRace(race);
             }}
           >
@@ -2579,7 +2648,7 @@ const params = new URLSearchParams(window.location.search);
       )}
       {user && (
         <div style={{ marginTop: 12 }}>
-          <button className="btns" onClick={() => setView("myraces")}>
+          <button className="btns" onClick={() => navigate("myraces")}>
             Mis Carreras ({plans.length || 0} guardadas)
           </button>
         </div>
@@ -2829,7 +2898,7 @@ const params = new URLSearchParams(window.location.search);
 
   const renderPlans = () => (
     <div className="pw">
-      <button className="back" onClick={() => setView("home")}>
+      <button className="back" onClick={() => navigate("home")}>
         ← Inicio
       </button>
       <div className="sh" style={{ marginBottom: 10 }}>
@@ -2894,6 +2963,7 @@ const params = new URLSearchParams(window.location.search);
             plan={p}
             onSelect={handlePlanSelect}
             activePlanId={currentPlanId}
+            isAdmin={isAdmin}
           />
         ))}
       </div>
@@ -2927,7 +2997,7 @@ const params = new URLSearchParams(window.location.search);
 
   const renderMyRaces = () => (
     <div className="pw">
-      <button className="back" onClick={() => setView("profile")}>
+      <button className="back" onClick={() => navigate("profile")}>
         ← Perfil
       </button>
       <div className="sh" style={{ marginBottom: 10 }}>
@@ -2975,7 +3045,7 @@ const params = new URLSearchParams(window.location.search);
                   className="btns"
                   onClick={() => {
                     setTrainPlan({ ...(p.plan || {}), race: p.race });
-                    setView("training");
+                    navigate("training");
                   }}
                 >
                   Abrir plan
@@ -3094,7 +3164,7 @@ const params = new URLSearchParams(window.location.search);
           <button
             className="btnp"
             style={{ marginTop: 14 }}
-            onClick={() => setView("calendar")}
+            onClick={() => navigate("calendar")}
           >
             Ver calendario
           </button>
@@ -3143,7 +3213,7 @@ const params = new URLSearchParams(window.location.search);
     } = trainPlan;
     return (
       <div className="tpage">
-        <button className="back" onClick={() => setView("race")}>
+        <button className="back" onClick={() => navigate("race")}>
           ← Carrera
         </button>
         <h1 className="ttitle">PLAN DE ENTRENAMIENTO</h1>
@@ -3199,6 +3269,53 @@ const params = new URLSearchParams(window.location.search);
             <span className="saved-badge">✓ Guardado en Firebase</span>
           </div>
         )}
+
+        {/* Proyección anual */}
+        {semanas.length >= 20 && (
+          <div style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            marginTop: 8,
+            padding: "4px 12px",
+            background: "rgba(59,130,246,.1)",
+            border: "1px solid rgba(59,130,246,.25)",
+            borderRadius: 20,
+            fontSize: ".75rem",
+            color: "#3b82f6",
+            fontWeight: 700,
+          }}>
+            📅 Proyección anual — {semanas.length} semanas · {Math.round(semanas.length / 4.3)} meses
+          </div>
+        )}
+
+        {/* Botones de descarga PDF */}
+        <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+          <button
+            className="btns"
+            disabled={pdfLoading}
+            style={{ fontSize: ".8rem", display: "flex", alignItems: "center", gap: 6 }}
+            onClick={async () => {
+              setPdfLoading(true);
+              try { await generatePlanPDF(trainPlan, activeWeek); } catch(e) { console.error(e); }
+              setPdfLoading(false);
+            }}
+          >
+            {pdfLoading ? "Generando..." : "📄 Descargar semana actual"}
+          </button>
+          <button
+            className="btns"
+            disabled={pdfLoading}
+            style={{ fontSize: ".8rem", display: "flex", alignItems: "center", gap: 6 }}
+            onClick={async () => {
+              setPdfLoading(true);
+              try { await generatePlanPDF(trainPlan, null); } catch(e) { console.error(e); }
+              setPdfLoading(false);
+            }}
+          >
+            {pdfLoading ? "Generando..." : "📋 Descargar plan completo"}
+          </button>
+        </div>
 
         {/* Macrociclo overview */}
         {macrociclo.length > 0 && (
@@ -3375,9 +3492,9 @@ const params = new URLSearchParams(window.location.search);
                   );
                   if (ctrl) {
                     setSelRace(ctrl);
-                    setView("postrace");
+                    navigate("postrace");
                   } else {
-                    setView("postrace");
+                    navigate("postrace");
                   }
                 }}
               >
@@ -3549,7 +3666,7 @@ const params = new URLSearchParams(window.location.search);
 
   const renderPostRace = () => (
     <div className="prpage">
-      <button className="back" onClick={() => setView("home")}>
+      <button className="back" onClick={() => navigate("home")}>
         ← Inicio
       </button>
       <h1 className="ptitle">
@@ -3779,7 +3896,7 @@ const params = new URLSearchParams(window.location.search);
                     sensacion: postRaceExtra.sensacion,
                     comentarios: postRaceExtra.comentarios,
                   });
-                  setView("training");
+                  navigate("training");
                 }}
               >
                 {recalibrating ? "Recalibrando plan..." : "🔄 Recalibrar plan siguiente →"}
@@ -3830,7 +3947,7 @@ const params = new URLSearchParams(window.location.search);
 
   const renderTourism = () => (
     <div className="tourpage">
-      <button className="back" onClick={() => setView("home")}>
+      <button className="back" onClick={() => navigate("home")}>
         ← Inicio
       </button>
       <h1
@@ -3888,7 +4005,7 @@ const params = new URLSearchParams(window.location.search);
                 className="btns"
                 style={{ marginTop: 16 }}
                 onClick={() => {
-                  setView("coach");
+                  navigate("coach");
                   sendMsg(
                     `Necesito más info logística para la ${tourRace.name}.`,
                   );
@@ -4427,7 +4544,7 @@ const params = new URLSearchParams(window.location.search);
                   setPaymentError(
                     "Has alcanzado 3 planes gratis. Activá ILIMITADO para generar más.",
                   );
-                  setView("plans");
+                  navigate("plans");
                   return;
                 }
                 genTrainPlan(selRace, user);
@@ -4482,7 +4599,7 @@ const params = new URLSearchParams(window.location.search);
         />
       )}
       <nav className="nav">
-        <div className="logo" onClick={() => setView("home")}>
+        <div className="logo" onClick={() => navigate("home")}>
           PACE<span>AI</span>
         </div>
         <div className="nav-links">
@@ -4505,7 +4622,7 @@ const params = new URLSearchParams(window.location.search);
           {user && (
             <button
               className={`nl ${view === "myraces" ? "act" : ""}`}
-              onClick={() => setView("myraces")}
+              onClick={() => navigate("myraces")}
             >
               Mis Carreras
             </button>
@@ -4513,7 +4630,7 @@ const params = new URLSearchParams(window.location.search);
           {user?.email === "marcelorodriguezestrada@gmail.com" && (
             <button
               className={`nl ${view === "admin" ? "act" : ""}`}
-              onClick={() => setView("admin")}
+              onClick={() => navigate("admin")}
               style={{ color: view === "admin" ? "#FFD700" : "#555" }}
             >
               📊 Admin
@@ -4537,7 +4654,7 @@ const params = new URLSearchParams(window.location.search);
               </div>
               <button
                 className="ava"
-                onClick={() => setView("profile")}
+                onClick={() => navigate("profile")}
                 title={user.email}
               >
                 {user.email[0].toUpperCase()}
@@ -4559,7 +4676,7 @@ const params = new URLSearchParams(window.location.search);
               >
                 Ingresar
               </button>
-              <button className="nav-btn" onClick={() => setView("profile")}>
+              <button className="nav-btn" onClick={() => navigate("profile")}>
                 Mi perfil
               </button>
             </>
