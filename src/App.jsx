@@ -705,9 +705,12 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 .wcont{background:var(--bg2);border:1px solid var(--bd);border-radius:11px;overflow:hidden}
 .wobj{padding:14px 18px;border-bottom:1px solid var(--bd);font-size:.88rem}
 .wobj strong{color:var(--or)}
-.srow{display:grid;grid-template-columns:90px 110px 90px 1fr;gap:10px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--bd);font-size:.82rem}
+.srow{display:grid;grid-template-columns:38px 32px 36px 110px 80px 1fr;gap:8px;align-items:center;padding:10px 18px;border-bottom:1px solid var(--bd);font-size:.82rem}
 .srow:last-child{border-bottom:none}
 .sday{font-weight:700}
+.smes{font-size:.72rem;color:var(--mu);font-weight:600;text-transform:uppercase}
+.sfecha{font-family:var(--fd);font-size:1rem;color:var(--tx);line-height:1}
+.sdiasem{font-size:.72rem;color:var(--mu);font-weight:600}
 .styp{padding:2px 9px;border-radius:20px;font-size:.7rem;font-weight:700;text-transform:uppercase;display:inline-block}
 .sdist{font-family:var(--fd);font-size:.95rem;color:var(--gold)}
 .sdesc{color:var(--mu);font-size:.79rem}
@@ -760,7 +763,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb)}
 .lcenter{text-align:center;padding:72px 20px}
 .ltxt{font-family:var(--fd);font-size:1.4rem;color:var(--mu)}
 .saved-badge{background:rgba(76,175,80,.15);border:1px solid rgba(76,175,80,.3);color:#4CAF50;padding:6px 14px;border-radius:6px;font-size:.8rem;font-weight:600}
-@media(max-width:600px){.frow{grid-template-columns:1fr}.nav-links{display:none}.srow{grid-template-columns:80px 1fr;grid-template-rows:auto auto}.sdist{display:none}}
+@media(max-width:600px){.frow{grid-template-columns:1fr}.nav-links{display:none}.srow{grid-template-columns:32px 28px 32px 1fr;gap:6px}.srow .sdist{display:none}}
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3594,32 +3597,71 @@ export default function RunnerAI() {
 
         {sem.sesiones && (
           <div className="wcont">
+            {/* Header de columnas */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "38px 32px 36px 110px 80px 1fr",
+              gap: 8,
+              padding: "8px 18px",
+              borderBottom: "1px solid var(--bd)",
+              background: "var(--bg3)",
+            }}>
+              {["MES", "DÍA", "", "SESIÓN", "KM", "DESCRIPCIÓN"].map((h, i) => (
+                <span key={i} style={{ fontSize: ".65rem", color: "var(--mu)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{h}</span>
+              ))}
+            </div>
             <div className="wobj">
               <strong>Objetivo:</strong> {sem.objetivo}
             </div>
             {sem.sesiones.map((s, i) => {
               const planStart = planStartDate || new Date();
+              // Calcular fecha real de este día
+              const dayOffset = activeWeek * 7 + i;
+              const realDate = new Date(planStart);
+              realDate.setDate(realDate.getDate() + dayOffset);
+              const mes = realDate.toLocaleDateString("es-AR", { month: "short" }).toUpperCase().replace(".", "");
+              const fecha = realDate.getDate();
+              const diaSem = realDate.toLocaleDateString("es-AR", { weekday: "short" });
+              const diaSemCorto = diaSem.charAt(0).toUpperCase() + diaSem.slice(1, 3);
+
               const daysElapsed = Math.floor((new Date() - planStart) / 86400000);
               const todayWeekIdx = Math.floor(daysElapsed / 7);
               const todayDayIdx = daysElapsed % 7;
               const isPlanActive = daysElapsed >= 0 && daysElapsed < (semanas.length * 7);
               const isToday = isPlanActive && activeWeek === todayWeekIdx && i === todayDayIdx;
               const session = isToday && adjustedSession ? { ...s, ...adjustedSession } : s;
+              const isDescanso = session.tipo === "Descanso";
+
               return (
                 <div key={i} className="srow" style={{
-                  background: isToday ? "rgba(34,197,94,.04)" : "transparent",
+                  background: isToday ? "rgba(34,197,94,.06)" : isDescanso ? "rgba(255,255,255,.01)" : "transparent",
                   borderLeft: isToday ? "3px solid #22c55e" : "3px solid transparent",
+                  opacity: isDescanso ? 0.55 : 1,
                 }}>
-                  <span className="sday" style={{ color: isToday ? "#22c55e" : "inherit", fontWeight: isToday ? 900 : 700 }}>
-                    {isToday ? "HOY" : session.dia}
+                  {/* Mes */}
+                  <span className="smes" style={{ color: isToday ? "#22c55e" : "var(--mu)" }}>
+                    {mes}
                   </span>
+                  {/* Número de día */}
+                  <span className="sfecha" style={{ color: isToday ? "#22c55e" : isDescanso ? "var(--mu)" : "var(--tx)" }}>
+                    {fecha}
+                  </span>
+                  {/* Día de semana */}
+                  <span className="sdiasem" style={{ color: isToday ? "#22c55e" : "var(--mu)" }}>
+                    {isToday ? "HOY" : diaSemCorto}
+                  </span>
+                  {/* Tipo */}
                   <span className="styp" style={{ background: stColor(session.tipo) + "22", color: stColor(session.tipo) }}>
                     {session.tipo}{isToday && adjustedSession && <span style={{ marginLeft: 3, fontSize: ".65rem", color: "#f59e0b" }}>✎</span>}
                   </span>
-                  <span className="sdist">{session.distancia}</span>
+                  {/* Distancia */}
+                  <span className="sdist">{session.distancia !== "-" ? session.distancia : ""}</span>
+                  {/* Descripción */}
                   <span className="sdesc">
                     {session.descripcion}{" "}
-                    <span style={{ color: "var(--or)", fontWeight: 600 }}>{session.ritmo}</span>
+                    {session.ritmo && session.ritmo !== "-" && (
+                      <span style={{ color: "var(--or)", fontWeight: 600 }}>{session.ritmo}</span>
+                    )}
                   </span>
                 </div>
               );
