@@ -1276,6 +1276,17 @@ export default function RunnerAI() {
     refreshUserData(user);
   }, [user]);
 
+  // ── Notificación WhatsApp via CallMeBot ──────────────────────────────────
+  const notifyWhatsApp = async (mensaje) => {
+    try {
+      const phone = import.meta.env.VITE_WA_PHONE || "";    // tu número con código país, sin + ni espacios. Ej: 5491112345678
+      const apikey = import.meta.env.VITE_WA_APIKEY || "";  // tu apikey de callmebot
+      if (!phone || !apikey) return;
+      const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(mensaje)}&apikey=${apikey}`;
+      await fetch(url).catch(() => {});
+    } catch {}
+  };
+
   const doAuth = async () => {
     if (!authForm.email || !authForm.password) {
       setAuthErr("Completá email y contraseña.");
@@ -1284,35 +1295,34 @@ export default function RunnerAI() {
     setAuthErr("");
     setAuthLoading(true);
     try {
-      const u =
-        authTab === "login"
-          ? await fbLogin(authForm.email, authForm.password)
-          : await fbRegister(authForm.email, authForm.password);
+      const isRegister = authTab === "register";
+      const u = isRegister
+        ? await fbRegister(authForm.email, authForm.password)
+        : await fbLogin(authForm.email, authForm.password);
       setUser(u);
       if (typeof window !== "undefined")
         window.localStorage.setItem("paceai_user", JSON.stringify(u));
       await refreshUserData(u);
       setShowAuth(false);
       setAuthForm({ email: "", password: "" });
+
+      // 🔔 Notificación WhatsApp
+      const accion = isRegister ? "🆕 NUEVO USUARIO" : "🔑 LOGIN";
+      const hora = new Date().toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      notifyWhatsApp(`PaceAI ${accion}\nEmail: ${u.email}\nHora: ${hora}`);
+
       if (selPlan && selPlan.id !== "basico") {
         await buyPlan(selPlan);
       }
-      // If user requested generation before auth, continue now
       if (autoGenerateAfterAuth && selRace) {
         setAutoGenerateAfterAuth(false);
         await handleGenerateClick(selRace, u);
       }
     } catch (e) {
       const msg = e.message
-        .replace(
-          "EMAIL_EXISTS",
-          "Este email ya está registrado. Probá ingresar.",
-        )
+        .replace("EMAIL_EXISTS", "Este email ya está registrado. Probá ingresar.")
         .replace("INVALID_LOGIN_CREDENTIALS", "Email o contraseña incorrectos.")
-        .replace(
-          "WEAK_PASSWORD : Password should be at least 6 characters",
-          "La contraseña debe tener al menos 6 caracteres.",
-        )
+        .replace("WEAK_PASSWORD : Password should be at least 6 characters", "La contraseña debe tener al menos 6 caracteres.")
         .replace("INVALID_EMAIL", "El email no es válido.")
         .replace(/_/g, " ");
       setAuthErr(msg);
@@ -1438,6 +1448,9 @@ export default function RunnerAI() {
           JSON.stringify(subscription),
         );
       setPaymentSuccess(`Pago aprobado y plan ${plan.name} activado.`);
+      // 🔔 Notificación WhatsApp — pago real
+      const hora = new Date().toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      notifyWhatsApp(`💰 PAGO APROBADO en PaceAI\nPlan: ${plan.name} — ARS ${plan.amount.toLocaleString()}\nUsuario: ${user?.email || "desconocido"}\nHora: ${hora}`);
       if (typeof window !== "undefined") {
         window.history.replaceState({}, "", window.location.pathname);
         setPaymentPendingData(null);
@@ -4379,17 +4392,17 @@ export default function RunnerAI() {
                     setAuthErr("");
                     setAuthLoading(true);
                     try {
-                      const u =
-                        authTab === "login"
-                          ? await fbLogin(authForm.email, authForm.password)
-                          : await fbRegister(authForm.email, authForm.password);
+                      const isReg = authTab === "register";
+                      const u = isReg
+                        ? await fbRegister(authForm.email, authForm.password)
+                        : await fbLogin(authForm.email, authForm.password);
                       setUser(u);
-                      window.localStorage.setItem(
-                        "paceai_user",
-                        JSON.stringify(u),
-                      );
+                      window.localStorage.setItem("paceai_user", JSON.stringify(u));
                       await refreshUserData(u);
                       setAuthForm({ email: "", password: "" });
+                      // 🔔 Notificación WhatsApp
+                      const hora = new Date().toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+                      notifyWhatsApp(`PaceAI ${isReg ? "🆕 NUEVO USUARIO" : "🔑 LOGIN"}\nEmail: ${u.email}\nHora: ${hora}`);
                       setOnboardingStep(3);
                     } catch (e) {
                       setAuthErr(
