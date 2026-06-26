@@ -194,7 +194,7 @@ const RACES = [
   {
     id: 1,
     name: "10K Palermo Classic",
-    date: "2025-07-13",
+    date: "2026-07-12",
     distance: "10K",
     location: "Parque Tres de Febrero, CABA",
     terrain: "asfalto plano",
@@ -214,7 +214,7 @@ const RACES = [
   {
     id: 2,
     name: "Media Maratón de Buenos Aires",
-    date: "2025-08-17",
+    date: "2026-08-16",
     distance: "21K",
     location: "Av. Figueroa Alcorta, CABA",
     terrain: "asfalto mixto",
@@ -234,7 +234,7 @@ const RACES = [
   {
     id: 3,
     name: "5K Nocturna del Rosedal",
-    date: "2025-09-06",
+    date: "2026-09-06",
     distance: "5K",
     location: "Jardín Japonés, CABA",
     terrain: "caminos de tierra",
@@ -254,7 +254,7 @@ const RACES = [
   {
     id: 4,
     name: "Maratón de Buenos Aires",
-    date: "2025-10-19",
+    date: "2026-10-18",
     distance: "42K",
     location: "Obelisco — Av. Corrientes",
     terrain: "asfalto con adoquines",
@@ -274,7 +274,7 @@ const RACES = [
   {
     id: 5,
     name: "21K Villa del Parque",
-    date: "2025-11-02",
+    date: "2026-11-01",
     distance: "21K",
     location: "Parque del Centenario, CABA",
     terrain: "circuito urbano",
@@ -294,7 +294,7 @@ const RACES = [
   {
     id: 6,
     name: "Trail Sierra Ventana",
-    date: "2025-11-30",
+    date: "2026-11-29",
     distance: "30K",
     location: "Sierra de la Ventana, Bs. As.",
     terrain: "montaña y senderos",
@@ -2133,7 +2133,7 @@ Hora: ${hora}`);
         </button>
         <div className="sh" style={{ marginBottom: 12 }}>
           <h1 className="st">
-            CALENDARIO <span>2025</span>
+            CALENDARIO <span>2026</span>
           </h1>
         </div>
 
