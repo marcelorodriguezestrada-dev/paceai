@@ -1276,14 +1276,32 @@ export default function RunnerAI() {
     refreshUserData(user);
   }, [user]);
 
-  // ── Notificación WhatsApp via CallMeBot ──────────────────────────────────
-  const notifyWhatsApp = async (mensaje) => {
+  // ── Notificación por email via EmailJS ───────────────────────────────────
+  // Configuración: crear cuenta gratis en emailjs.com
+  // → Email Services → Add Service → Gmail
+  // → Email Templates → crear template con variables {{subject}} y {{message}}
+  // → Account → Public Key
+  const notifyEmail = async (asunto, mensaje) => {
     try {
-      const phone = import.meta.env.VITE_WA_PHONE || "";    // tu número con código país, sin + ni espacios. Ej: 5491112345678
-      const apikey = import.meta.env.VITE_WA_APIKEY || "";  // tu apikey de callmebot
-      if (!phone || !apikey) return;
-      const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(mensaje)}&apikey=${apikey}`;
-      await fetch(url).catch(() => {});
+      const serviceId  = import.meta.env.VITE_EMAILJS_SERVICE  || "";
+      const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE || "";
+      const publicKey  = import.meta.env.VITE_EMAILJS_KEY      || "";
+      if (!serviceId || !templateId || !publicKey) return;
+
+      await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          service_id:  serviceId,
+          template_id: templateId,
+          user_id:     publicKey,
+          template_params: {
+            subject: asunto,
+            message: mensaje,
+            to_email: "marcelorodriguezestrada@gmail.com",
+          },
+        }),
+      });
     } catch {}
   };
 
@@ -1309,7 +1327,8 @@ export default function RunnerAI() {
       // 🔔 Notificación WhatsApp
       const accion = isRegister ? "🆕 NUEVO USUARIO" : "🔑 LOGIN";
       const hora = new Date().toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-      notifyWhatsApp(`PaceAI ${accion}\nEmail: ${u.email}\nHora: ${hora}`);
+      notifyEmail(`PaceAI - ${accion}`, `Email: ${u.email}
+Hora: ${hora}`);
 
       if (selPlan && selPlan.id !== "basico") {
         await buyPlan(selPlan);
@@ -1448,9 +1467,12 @@ export default function RunnerAI() {
           JSON.stringify(subscription),
         );
       setPaymentSuccess(`Pago aprobado y plan ${plan.name} activado.`);
-      // 🔔 Notificación WhatsApp — pago real
+      // 🔔 Notificación email — pago real
       const hora = new Date().toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-      notifyWhatsApp(`💰 PAGO APROBADO en PaceAI\nPlan: ${plan.name} — ARS ${plan.amount.toLocaleString()}\nUsuario: ${user?.email || "desconocido"}\nHora: ${hora}`);
+      notifyEmail(
+        `💰 PAGO APROBADO — ${plan.name}`,
+        `Plan: ${plan.name}\nMonto: ARS ${plan.amount.toLocaleString()}\nUsuario: ${user?.email || "desconocido"}\nHora: ${hora}`
+      );
       if (typeof window !== "undefined") {
         window.history.replaceState({}, "", window.location.pathname);
         setPaymentPendingData(null);
@@ -4400,9 +4422,12 @@ export default function RunnerAI() {
                       window.localStorage.setItem("paceai_user", JSON.stringify(u));
                       await refreshUserData(u);
                       setAuthForm({ email: "", password: "" });
-                      // 🔔 Notificación WhatsApp
+                      // 🔔 Notificación email
                       const hora = new Date().toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-                      notifyWhatsApp(`PaceAI ${isReg ? "🆕 NUEVO USUARIO" : "🔑 LOGIN"}\nEmail: ${u.email}\nHora: ${hora}`);
+                      notifyEmail(
+                        `PaceAI — ${isReg ? "🆕 NUEVO USUARIO" : "🔑 LOGIN"}`,
+                        `Email: ${u.email}\nHora: ${hora}`
+                      );
                       setOnboardingStep(3);
                     } catch (e) {
                       setAuthErr(
