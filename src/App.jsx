@@ -1654,10 +1654,12 @@ Hora: ${hora}`);
     // Build structured macrocycle prompt (Ortiguera / Rodríguez methodology)
     const raceDate = new Date(race.date);
     const today = new Date();
+    const planCreation = today; // fecha de inicio del plan = hoy cuando se genera
     const weeksAvailable = Math.max(
       4,
-      Math.ceil((raceDate - today) / (7 * 24 * 60 * 60 * 1000)),
+      Math.ceil((raceDate - planCreation) / (7 * 24 * 60 * 60 * 1000)),
     );
+    setPlanStartDate(planCreation); // guardar fecha de inicio para los cálculos de fechas
     const macrocycle = calcMacrocycle(weeksAvailable, race.distance);
     const activeProfile = pForm.weight ? pForm : profile;
     const paceZones = activeProfile?.time1600
@@ -1704,7 +1706,7 @@ Hora: ${hora}`);
         throw e;
       }
 
-      const full = { ...plan, race, weeksAvailable, paceZones, macrocycle };
+      const full = { ...plan, race, weeksAvailable, paceZones, macrocycle, createdAt: new Date().toISOString() };
       setTrainPlan(full);
       trackEvent("plan_generated", { raceId: race.id, weeks: weeksAvailable });
 
@@ -3083,6 +3085,8 @@ Hora: ${hora}`);
                   className="btns"
                   onClick={() => {
                     setTrainPlan({ ...(p.plan || {}), race: p.race });
+                    // Restaurar fecha de inicio del plan desde createdAt
+                    if (p.createdAt) setPlanStartDate(new Date(p.createdAt));
                     navigate("training");
                   }}
                 >
