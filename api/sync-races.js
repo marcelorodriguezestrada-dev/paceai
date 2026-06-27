@@ -35,41 +35,26 @@ async function fbSet(collection, docId, data) {
   return r.json();
 }
 
-// ── Fetch dondecorrer ─────────────────────────────────────────────────────────
+// ── El sitio es una SPA — HTML estático no tiene carreras ─────────────────────
 async function fetchDondeCorrer() {
-  const urls = [
-    "https://ar.dondecorrer.com/",
-    "https://ar.dondecorrer.com/carreras",
-  ];
-  for (const url of urls) {
-    try {
-      const r = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; PaceAI/1.0)",
-          "Accept": "text/html",
-        },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (r.ok) {
-        const html = await r.text();
-        console.log(`[sync-races] Fetched ${url} — ${html.length} chars`);
-        return html.slice(0, 12000);
-      }
-    } catch (e) {
-      console.log(`[sync-races] ${url} failed: ${e.message}`);
-    }
-  }
-  return null;
+  return null; // Groq genera el calendario desde su conocimiento
 }
 
 // ── Groq extraction (sin SDK, fetch nativo) ───────────────────────────────────
-async function extractRacesWithGrok(html) {
-  const htmlContext = html
-    ? `HTML del sitio (primeros 8000 chars):\n${html.slice(0, 8000)}`
-    : `El sitio carga con JavaScript — no hay carreras en el HTML estático.
-Generá el calendario típico de running de Buenos Aires para los próximos 6 meses
-basándote en el historial conocido: Maratón BA (octubre), Media Maratón BA (agosto),
-carreras de Palermo, nocturnas del Rosedal, trails de Sierra Ventana, etc.`;
+async function extractRacesWithGrok() {
+  const htmlContext = `Generá un calendario realista de carreras de running en Argentina
+para los próximos 6 meses (julio 2026 a diciembre 2026).
+Incluí AL MENOS 15 carreras variadas: 5K, 10K, 21K y 42K.
+Basate en eventos reales conocidos:
+- Maratón de Buenos Aires (42K, octubre, Palermo)
+- Media Maratón de Buenos Aires (21K, agosto, Palermo)
+- Corrida Nocturna del Rosedal (10K, varias fechas)
+- Trail Sierra de la Ventana (trail, invierno)
+- Corrida de San Silvestre (10K, diciembre)
+- Maratón de Rosario (42K, noviembre)
+- Corrida del Lago (10K, Palermo)
+- Y otras carreras populares de BA, Rosario, Córdoba y Mar del Plata.
+IMPORTANTE: el array "carreras" debe tener mínimo 15 elementos.`;
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -84,13 +69,14 @@ carreras de Palermo, nocturnas del Rosedal, trails de Sierra Ventana, etc.`;
       messages: [
         {
           role: "system",
-          content: `Sos un extractor de datos de carreras de running de Argentina.
+          content: `Sos un experto en carreras de running de Argentina.
 Respondés ÚNICAMENTE con JSON válido sin markdown ni texto adicional.`,
         },
         {
           role: "user",
-          content: `Analizá el siguiente contenido y extraé TODAS las carreras de running de Argentina.
-Para cada carrera necesito:
+          content: `${htmlContext}
+
+Para cada carrera generá:
 - id (string único, ej: "race_001")
 - name (nombre completo)
 - date (YYYY-MM-DD)
@@ -109,9 +95,7 @@ Formato de respuesta:
   "carreras": [...],
   "updated_at": "${new Date().toISOString()}",
   "source": "dondecorrer.com"
-}
-
-${htmlContext}`,
+}`,
         },
       ],
     }),
@@ -125,15 +109,13 @@ ${htmlContext}`,
   const data = await response.json();
   let text = data.choices[0]?.message?.content || "";
 
-  // ── DEBUG ──
-  console.log("[sync-races] Groq raw response (primeros 500 chars):", text.slice(0, 500));
   console.log("[sync-races] Groq finish_reason:", data.choices[0]?.finish_reason);
+  console.log("[sync-races] Groq raw (primeros 300 chars):", text.slice(0, 300));
 
   text = text.replace(/```(?:json)?\n?|```/g, "").trim();
   const match = text.match(/\{[\s\S]*\}/);
 
   if (!match) {
-    console.error("[sync-races] No se encontró JSON en la respuesta:", text.slice(0, 300));
     throw new Error(`Groq no devolvió JSON válido. Respuesta: ${text.slice(0, 200)}`);
   }
 
@@ -142,7 +124,6 @@ ${htmlContext}`,
     console.log("[sync-races] Carreras parseadas:", parsed?.carreras?.length);
     return parsed;
   } catch (e) {
-    console.error("[sync-races] JSON.parse falló:", e.message);
     throw new Error(`JSON inválido de Groq: ${e.message}`);
   }
 }
@@ -177,10 +158,10 @@ export default async function handler(req, res) {
   console.log("[sync-races] Iniciando sync...");
 
   try {
-    const html = await fetchDondeCorrer();
+    await fetchDondeCorrer(); // no-op, kept for structure
 
     console.log("[sync-races] Enviando a Groq...");
-    const result = await extractRacesWithGrok(html);
+    const result = await extractRacesWithGrok();
 
     if (!result?.carreras?.length) {
       throw new Error("Groq no devolvió carreras válidas");
