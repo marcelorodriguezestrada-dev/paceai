@@ -5,8 +5,6 @@
  * Manual: GET /api/sync-races?secret=paceai2026
  */
 
-import Groq from "groq-sdk";
-
 const FB_PROJECT_ID = process.env.VITE_FB_PROJECT_ID;
 const FB_API_KEY    = process.env.VITE_FB_API_KEY;
 const SYNC_SECRET   = process.env.SYNC_SECRET || "paceai2026";
@@ -64,10 +62,8 @@ async function fetchDondeCorrer() {
   return null;
 }
 
-// ── Grok extraction ───────────────────────────────────────────────────────────
+// ── Groq extraction (sin SDK, fetch nativo) ───────────────────────────────────
 async function extractRacesWithGrok(html) {
-  const groq = new Groq({ apiKey: process.env.GROK_API_KEY });
-
   const htmlContext = html
     ? `HTML del sitio (primeros 8000 chars):\n${html.slice(0, 8000)}`
     : `El sitio carga con JavaScript — no hay carreras en el HTML estático.
@@ -75,19 +71,25 @@ Generá el calendario típico de running de Buenos Aires para los próximos 6 me
 basándote en el historial conocido: Maratón BA (octubre), Media Maratón BA (agosto),
 carreras de Palermo, nocturnas del Rosedal, trails de Sierra Ventana, etc.`;
 
-  const completion = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.2,
-    max_tokens: 3000,
-    messages: [
-      {
-        role: "system",
-        content: `Sos un extractor de datos de carreras de running de Argentina.
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.GROK_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.2,
+      max_tokens: 3000,
+      messages: [
+        {
+          role: "system",
+          content: `Sos un extractor de datos de carreras de running de Argentina.
 Respondés ÚNICAMENTE con JSON válido sin markdown ni texto adicional.`,
-      },
-      {
-        role: "user",
-        content: `Analizá el siguiente contenido y extraé TODAS las carreras de running de Argentina.
+        },
+        {
+          role: "user",
+          content: `Analizá el siguiente contenido y extraé TODAS las carreras de running de Argentina.
 Para cada carrera necesito:
 - id (string único, ej: "race_001")
 - name (nombre completo)
@@ -110,11 +112,18 @@ Formato de respuesta:
 }
 
 ${htmlContext}`,
-      },
-    ],
+        },
+      ],
+    }),
   });
 
-  let text = completion.choices[0]?.message?.content || "";
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Groq API error ${response.status}: ${err}`);
+  }
+
+  const data = await response.json();
+  let text = data.choices[0]?.message?.content || "";
   text = text.replace(/```(?:json)?\n?|```/g, "").trim();
   const match = text.match(/\{[\s\S]*\}/);
   return JSON.parse(match ? match[0] : text);
@@ -122,19 +131,16 @@ ${htmlContext}`,
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
-  // CORS para llamadas desde el AdminPanel
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  // Auth
   if (req.method === "GET") {
     if (req.query?.secret !== SYNC_SECRET) {
       return res.status(401).json({ error: "Unauthorized. Usá ?secret=TU_SECRET" });
     }
   } else if (req.method === "POST") {
-    // Llamada desde AdminPanel — verificar secret en body
     const { secret } = req.body || {};
     if (secret !== SYNC_SECRET) {
       return res.status(401).json({ error: "Unauthorized." });
@@ -153,22 +159,19 @@ export default async function handler(req, res) {
   console.log("[sync-races] Iniciando sync...");
 
   try {
-    // 1. HTML de dondecorrer
     const html = await fetchDondeCorrer();
 
-    // 2. Extraer con Grok
-    console.log("[sync-races] Enviando a Grok...");
+    console.log("[sync-races] Enviando a Groq...");
     const result = await extractRacesWithGrok(html);
 
     if (!result?.carreras?.length) {
-      throw new Error("Grok no devolvió carreras válidas");
+      throw new Error("Groq no devolvió carreras válidas");
     }
 
     console.log(`[sync-races] ${result.carreras.length} carreras extraídas`);
 
     const syncedAt = new Date().toISOString();
 
-    // 3. Guardar un documento por carrera (compatible con el frontend)
     for (const carrera of result.carreras) {
       const docId = String(carrera.id || `race_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
       await fbSet("races_sync", docId, {
@@ -178,7 +181,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // 4. Metadata aparte (para el AdminPanel)
     await fbSet("races_sync", "_meta", {
       updated_at: syncedAt,
       count: result.carreras.length,
