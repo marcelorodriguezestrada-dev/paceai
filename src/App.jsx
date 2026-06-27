@@ -978,9 +978,6 @@ export default function RunnerAI() {
     FB.apiKey,
     FB.projectId
   );
-  const [races, setRaces] = useState(RACES); // empieza con las locales, reemplaza con Firebase
-  const [racesLoading, setRacesLoading] = useState(false);
-  const [lastRaceSync, setLastRaceSync] = useState(null);
 
   // navigate — wrapper de setView que trackea automáticamente cada cambio de pantalla
   const navigate = (newView, data = {}) => {
