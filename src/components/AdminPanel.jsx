@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 
 const ADMIN_EMAIL = "marcelorodriguezestrada@gmail.com";
+const SYNC_SECRET = import.meta.env.VITE_SYNC_SECRET || "paceai2026";
 
 const fsBase = (projectId, col, doc = "") =>
   `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${col}${doc ? "/" + doc : ""}`;
@@ -82,12 +83,154 @@ function EventRow({ event }) {
   );
 }
 
+// ── Componente de sync de carreras ────────────────────────────────────────────
+function RacesSyncPanel({ projectId, token }) {
+  const [syncing, setSyncing]     = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+  const [syncError, setSyncError]   = useState("");
+  const [lastSync, setLastSync]     = useState(null);
+  const [raceCount, setRaceCount]   = useState(null);
+
+  // Leer metadata del último sync
+  useEffect(() => {
+    const loadMeta = async () => {
+      try {
+        const r = await fetch(
+          `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/races_sync/_meta?key=${import.meta.env.VITE_FB_API_KEY}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const d = await r.json();
+        const meta = fromFS(d);
+        if (meta) {
+          setLastSync(meta.updated_at || null);
+          setRaceCount(meta.count || null);
+        }
+      } catch {}
+    };
+    loadMeta();
+  }, []);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    setSyncError("");
+    try {
+      const r = await fetch("/api/sync-races", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: SYNC_SECRET }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Error desconocido");
+      setSyncResult(d);
+      setLastSync(d.updated_at);
+      setRaceCount(d.count);
+    } catch (err) {
+      setSyncError(err.message);
+    }
+    setSyncing(false);
+  };
+
+  return (
+    <div style={{
+      background: "#111",
+      border: "1px solid #2a2a2a",
+      borderRadius: 12,
+      padding: 20,
+      marginBottom: 24,
+    }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: ".72rem", color: "#FF4500", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>
+            🏃 Sincronización de carreras
+          </div>
+          <div style={{ fontSize: ".82rem", color: "#555" }}>
+            Extrae carreras de dondecorrer.com con Grok y las guarda en Firebase.
+          </div>
+        </div>
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          style={{
+            background: syncing ? "#1a1a1a" : "rgba(255,69,0,.15)",
+            border: `1px solid ${syncing ? "#2a2a2a" : "rgba(255,69,0,.4)"}`,
+            color: syncing ? "#555" : "#FF4500",
+            padding: "10px 20px",
+            borderRadius: 8,
+            cursor: syncing ? "not-allowed" : "pointer",
+            fontWeight: 700,
+            fontSize: ".85rem",
+            fontFamily: "'DM Sans', sans-serif",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            transition: ".2s",
+          }}
+        >
+          {syncing ? (
+            <>
+              <div style={{ width: 14, height: 14, border: "2px solid #333", borderTopColor: "#FF4500", borderRadius: "50%", animation: "sp .8s linear infinite" }} />
+              Sincronizando...
+            </>
+          ) : (
+            "🔄 Sincronizar ahora"
+          )}
+        </button>
+      </div>
+
+      {/* Estado actual */}
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: syncResult || syncError ? 14 : 0 }}>
+        <div style={{ padding: "8px 14px", background: "#0d0d0d", border: "1px solid #1a1a1a", borderRadius: 8 }}>
+          <div style={{ fontSize: ".68rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>Último sync</div>
+          <div style={{ fontSize: ".82rem", color: lastSync ? "#ccc" : "#444" }}>
+            {lastSync ? new Date(lastSync).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "Nunca"}
+          </div>
+        </div>
+        <div style={{ padding: "8px 14px", background: "#0d0d0d", border: "1px solid #1a1a1a", borderRadius: 8 }}>
+          <div style={{ fontSize: ".68rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>Carreras en Firebase</div>
+          <div style={{ fontFamily: "'Anton', sans-serif", fontSize: "1.4rem", color: "#FF4500", lineHeight: 1 }}>
+            {raceCount ?? "—"}
+          </div>
+        </div>
+        <div style={{ padding: "8px 14px", background: "#0d0d0d", border: "1px solid #1a1a1a", borderRadius: 8 }}>
+          <div style={{ fontSize: ".68rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>Cron automático</div>
+          <div style={{ fontSize: ".82rem", color: "#22c55e" }}>Lunes 8am ✓</div>
+        </div>
+      </div>
+
+      {/* Resultado exitoso */}
+      {syncResult && (
+        <div style={{ marginTop: 14, padding: "12px 16px", background: "rgba(34,197,94,.06)", border: "1px solid rgba(34,197,94,.2)", borderRadius: 8 }}>
+          <div style={{ fontSize: ".78rem", color: "#22c55e", fontWeight: 700, marginBottom: 8 }}>
+            ✓ Sync exitoso — {syncResult.count} carreras guardadas
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 160, overflowY: "auto" }}>
+            {(syncResult.races || []).map((r, i) => (
+              <div key={i} style={{ fontSize: ".75rem", color: "#555" }}>• {r}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Error */}
+      {syncError && (
+        <div style={{ marginTop: 14, padding: "12px 16px", background: "rgba(239,68,68,.06)", border: "1px solid rgba(239,68,68,.2)", borderRadius: 8, fontSize: ".82rem", color: "#ef4444" }}>
+          ❌ Error: {syncError}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function AdminPanel({ user, projectId }) {
-  const [events, setEvents] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [subs, setSubs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("overview");
+  const [events, setEvents]       = useState([]);
+  const [users, setUsers]         = useState([]);
+  const [subs, setSubs]           = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [tab, setTab]             = useState("overview");
   const [refreshing, setRefreshing] = useState(false);
 
   if (!user || user.email !== ADMIN_EMAIL) {
@@ -114,36 +257,34 @@ export default function AdminPanel({ user, projectId }) {
 
   useEffect(() => { loadData(); }, []);
 
-  // ── Métricas base ──
-  const totalEvents = events.length;
-  const uniqueUsers = [...new Set(events.map(e => e.userId).filter(Boolean))].length;
-  const now = Date.now();
-  const last24h = events.filter(e => now - new Date(e.ts) < 86400000).length;
-
-  const eventCounts = events.reduce((acc, e) => { acc[e.event] = (acc[e.event] || 0) + 1; return acc; }, {});
-  const viewCounts = events.reduce((acc, e) => { if (e.view && e.view !== "unknown") acc[e.view] = (acc[e.view] || 0) + 1; return acc; }, {});
-
+  // ── Métricas ──
+  const totalEvents   = events.length;
+  const uniqueUsers   = [...new Set(events.map(e => e.userId).filter(Boolean))].length;
+  const now           = Date.now();
+  const last24h       = events.filter(e => now - new Date(e.ts) < 86400000).length;
+  const eventCounts   = events.reduce((acc, e) => { acc[e.event] = (acc[e.event] || 0) + 1; return acc; }, {});
+  const viewCounts    = events.reduce((acc, e) => { if (e.view && e.view !== "unknown") acc[e.view] = (acc[e.view] || 0) + 1; return acc; }, {});
   const plansGenerated = (eventCounts["plan_generated"] || 0) + (eventCounts["multi_plan_generated"] || 0);
   const conversionRate = eventCounts["generate_click"] ? Math.round((plansGenerated / eventCounts["generate_click"]) * 100) : 0;
-  const activeSubs = subs.filter(s => s.status === "active").length;
-  const revenue = subs.filter(s => s.status === "active").reduce((acc, s) => acc + (Number(s.amount) || 0), 0);
+  const activeSubs    = subs.filter(s => s.status === "active").length;
+  const revenue       = subs.filter(s => s.status === "active").reduce((acc, s) => acc + (Number(s.amount) || 0), 0);
 
   const raceCounts = events.filter(e => e.event === "generate_click" && e.data).reduce((acc, e) => {
     try { const d = typeof e.data === "string" ? JSON.parse(e.data) : e.data; if (d.raceName) acc[d.raceName] = (acc[d.raceName] || 0) + 1; } catch {}
     return acc;
   }, {});
-  const topRaces = Object.entries(raceCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const maxRaceCount = topRaces[0]?.[1] || 1;
-  const maxViewCount = Math.max(...Object.values(viewCounts), 1);
+  const topRaces      = Object.entries(raceCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const maxRaceCount  = topRaces[0]?.[1] || 1;
+  const maxViewCount  = Math.max(...Object.values(viewCounts), 1);
   const maxEventCount = Math.max(...Object.values(eventCounts), 1);
 
   // ── UTM ──
-  const sourceCounts = events.reduce((acc, e) => { const src = e.utm_source || "directo"; acc[src] = (acc[src] || 0) + 1; return acc; }, {});
-  const mediumCounts = events.reduce((acc, e) => { const med = e.utm_medium || "ninguno"; acc[med] = (acc[med] || 0) + 1; return acc; }, {});
+  const sourceCounts   = events.reduce((acc, e) => { const src = e.utm_source || "directo"; acc[src] = (acc[src] || 0) + 1; return acc; }, {});
+  const mediumCounts   = events.reduce((acc, e) => { const med = e.utm_medium || "ninguno"; acc[med] = (acc[med] || 0) + 1; return acc; }, {});
   const campaignCounts = events.reduce((acc, e) => { const cam = e.utm_campaign || "ninguna"; acc[cam] = (acc[cam] || 0) + 1; return acc; }, {});
-  const maxSrc = Math.max(...Object.values(sourceCounts), 1);
-  const maxMed = Math.max(...Object.values(mediumCounts), 1);
-  const maxCam = Math.max(...Object.values(campaignCounts), 1);
+  const maxSrc  = Math.max(...Object.values(sourceCounts), 1);
+  const maxMed  = Math.max(...Object.values(mediumCounts), 1);
+  const maxCam  = Math.max(...Object.values(campaignCounts), 1);
   const utmColorMap = { instagram: "#E1306C", facebook: "#1877F2", tiktok: "#69C9D0", whatsapp: "#25D366", twitter: "#1DA1F2", directo: "#555555", ninguno: "#333333", ninguna: "#333333" };
   const uniqueBySource = events.reduce((acc, e) => {
     const src = e.utm_source || "directo";
@@ -157,7 +298,6 @@ export default function AdminPanel({ user, projectId }) {
     try { const d = typeof e.data === "string" ? JSON.parse(e.data) : e.data; if (d?.to) acc[d.to] = (acc[d.to] || 0) + 1; } catch {}
     return acc;
   }, {});
-
   const timeByScreen = events.filter(e => e.event === "time_on_screen").reduce((acc, e) => {
     try {
       const d = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
@@ -169,19 +309,18 @@ export default function AdminPanel({ user, projectId }) {
     } catch {}
     return acc;
   }, {});
-
   const avgTimeByScreen = Object.fromEntries(
     Object.entries(timeByScreen).map(([v, { total, count }]) => [v, Math.round(total / count)])
   );
 
   const TABS = [
-    { id: "overview", label: "📊 Overview" },
+    { id: "overview", label: "📊 Overview"   },
     { id: "nav",      label: "🧭 Navegación" },
-    { id: "funnel",   label: "🔽 Funnel" },
-    { id: "sources",  label: "🌐 Fuentes" },
-    { id: "races",    label: "🏃 Carreras" },
-    { id: "events",   label: "📋 Eventos" },
-    { id: "users",    label: "👥 Usuarios" },
+    { id: "funnel",   label: "🔽 Funnel"     },
+    { id: "sources",  label: "🌐 Fuentes"    },
+    { id: "races",    label: "🏃 Carreras"   },
+    { id: "events",   label: "📋 Eventos"    },
+    { id: "users",    label: "👥 Usuarios"   },
   ];
 
   if (loading) return (
@@ -201,25 +340,36 @@ export default function AdminPanel({ user, projectId }) {
           <h1 style={{ fontFamily: "'Anton', sans-serif", fontSize: "2.2rem", lineHeight: 1, margin: 0 }}>PACEAI <span style={{ color: "#FF4500" }}>ANALYTICS</span></h1>
           <div style={{ color: "#555", fontSize: ".8rem", marginTop: 4 }}>{new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
         </div>
-        <button onClick={loadData} disabled={refreshing} style={{ background: refreshing ? "#1a1a1a" : "rgba(255,69,0,.12)", border: "1px solid rgba(255,69,0,.3)", color: refreshing ? "#555" : "#FF4500", padding: "8px 18px", borderRadius: 8, cursor: refreshing ? "not-allowed" : "pointer", fontWeight: 700, fontSize: ".82rem", fontFamily: "'DM Sans', sans-serif" }}>
+        <button
+          onClick={loadData}
+          disabled={refreshing}
+          style={{ background: refreshing ? "#1a1a1a" : "rgba(255,69,0,.12)", border: "1px solid rgba(255,69,0,.3)", color: refreshing ? "#555" : "#FF4500", padding: "8px 18px", borderRadius: 8, cursor: refreshing ? "not-allowed" : "pointer", fontWeight: 700, fontSize: ".82rem", fontFamily: "'DM Sans', sans-serif" }}
+        >
           {refreshing ? "Actualizando..." : "↻ Actualizar"}
         </button>
       </div>
 
+      {/* ── Panel sync de carreras ── */}
+      <RacesSyncPanel projectId={pid} token={user.token} />
+
       {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 28 }}>
-        <KpiCard icon="👥" label="Usuarios únicos" value={uniqueUsers || users.length} sub="con actividad registrada" color="#3b82f6" />
-        <KpiCard icon="📋" label="Eventos totales" value={totalEvents} sub={`${last24h} en las últimas 24h`} color="#FF4500" />
-        <KpiCard icon="🤖" label="Planes generados" value={plansGenerated} sub={`${conversionRate}% de los clicks`} color="#22c55e" />
-        <KpiCard icon="💳" label="Suscripciones activas" value={activeSubs} sub={revenue > 0 ? `ARS ${revenue.toLocaleString()} MRR` : "sin pagos aún"} color="#FFD700" />
-        <KpiCard icon="❌" label="Errores de plan" value={eventCounts["plan_error"] || 0} sub="al generar con IA" color="#ef4444" />
-        <KpiCard icon="🌐" label="Fuente top" value={Object.entries(sourceCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || "—"} sub={`${Object.entries(sourceCounts).sort((a,b) => b[1]-a[1])[0]?.[1] || 0} eventos`} color="#E1306C" />
+        <KpiCard icon="👥" label="Usuarios únicos"        value={uniqueUsers || users.length} sub="con actividad registrada"                                color="#3b82f6" />
+        <KpiCard icon="📋" label="Eventos totales"        value={totalEvents}                 sub={`${last24h} en las últimas 24h`}                         color="#FF4500" />
+        <KpiCard icon="🤖" label="Planes generados"       value={plansGenerated}              sub={`${conversionRate}% de los clicks`}                      color="#22c55e" />
+        <KpiCard icon="💳" label="Suscripciones activas" value={activeSubs}                  sub={revenue > 0 ? `ARS ${revenue.toLocaleString()} MRR` : "sin pagos aún"} color="#FFD700" />
+        <KpiCard icon="❌" label="Errores de plan"        value={eventCounts["plan_error"] || 0} sub="al generar con IA"                                    color="#ef4444" />
+        <KpiCard icon="🌐" label="Fuente top"             value={Object.entries(sourceCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || "—"} sub={`${Object.entries(sourceCounts).sort((a,b) => b[1]-a[1])[0]?.[1] || 0} eventos`} color="#E1306C" />
       </div>
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 24, flexWrap: "wrap" }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid", borderColor: tab === t.id ? "#FF4500" : "#2a2a2a", background: tab === t.id ? "rgba(255,69,0,.12)" : "transparent", color: tab === t.id ? "#FF4500" : "#888", fontWeight: 700, fontSize: ".8rem", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid", borderColor: tab === t.id ? "#FF4500" : "#2a2a2a", background: tab === t.id ? "rgba(255,69,0,.12)" : "transparent", color: tab === t.id ? "#FF4500" : "#888", fontWeight: 700, fontSize: ".8rem", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
+          >
             {t.label}
           </button>
         ))}
@@ -284,11 +434,11 @@ export default function AdminPanel({ user, projectId }) {
         <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 24, maxWidth: 540 }}>
           <div style={{ fontSize: ".72rem", color: "#FF4500", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 20 }}>Funnel de conversión</div>
           {[
-            { label: "Usuarios únicos", value: uniqueUsers || users.length, color: "#3b82f6" },
-            { label: "Clicks en generar plan", value: eventCounts["generate_click"] || 0, color: "#8b5cf6" },
-            { label: "Planes generados", value: plansGenerated, color: "#22c55e" },
-            { label: "Análisis post-carrera", value: eventCounts["plan_recalibrated"] || 0, color: "#f59e0b" },
-            { label: "Suscripciones activas", value: activeSubs, color: "#FFD700" },
+            { label: "Usuarios únicos",         value: uniqueUsers || users.length,          color: "#3b82f6" },
+            { label: "Clicks en generar plan",  value: eventCounts["generate_click"] || 0,   color: "#8b5cf6" },
+            { label: "Planes generados",         value: plansGenerated,                        color: "#22c55e" },
+            { label: "Análisis post-carrera",   value: eventCounts["plan_recalibrated"] || 0, color: "#f59e0b" },
+            { label: "Suscripciones activas",   value: activeSubs,                            color: "#FFD700" },
           ].map((step, i, arr) => {
             const pct = arr[0].value > 0 ? Math.round((step.value / arr[0].value) * 100) : 0;
             return (

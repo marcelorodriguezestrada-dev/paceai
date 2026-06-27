@@ -1,6 +1,9 @@
 /**
  * useRaces — carga carreras desde Firebase (sync automático) 
  * con fallback al array hardcodeado si Firebase no tiene datos
+ * 
+ * Formato Firebase: un documento por carrera en colección "races_sync"
+ * (generado por /api/sync-races)
  */
 import { useState, useEffect } from "react";
 
@@ -49,22 +52,32 @@ const RACES_FALLBACK = [
   },
 ];
 
-// Imagen por distancia
 function raceImage(distance = "") {
   const d = distance.toLowerCase();
   if (d.includes("42")) return "🏆";
   if (d.includes("21")) return "🌆";
   if (d.includes("trail") || d.includes("mtn")) return "⛰️";
   if (d.includes("10")) return "🏃";
-  if (d.includes("5")) return "🌙";
+  if (d.includes("5"))  return "🌙";
   return "🏅";
 }
 
+// Parsear un documento Firestore al objeto JS plano
+function fromFS(doc) {
+  if (!doc?.fields) return null;
+  return Object.fromEntries(
+    Object.entries(doc.fields).map(([k, v]) => {
+      const val = v.stringValue ?? v.integerValue ?? v.doubleValue ?? v.booleanValue ?? null;
+      try { return [k, JSON.parse(val)]; } catch { return [k, val]; }
+    })
+  );
+}
+
 export function useRaces(fbApiKey, fbProjectId) {
-  const [races, setRaces] = useState(RACES_FALLBACK);
+  const [races, setRaces]     = useState(RACES_FALLBACK);
   const [loading, setLoading] = useState(false);
   const [lastSync, setLastSync] = useState(null);
-  const [source, setSource] = useState("local");
+  const [source, setSource]   = useState("local");
 
   useEffect(() => {
     if (!fbApiKey || !fbProjectId) return;
@@ -74,60 +87,74 @@ export function useRaces(fbApiKey, fbProjectId) {
   const loadFromFirebase = async () => {
     setLoading(true);
     try {
-      const url = `https://firestore.googleapis.com/v1/projects/${fbProjectId}/databases/(default)/documents/races_sync/current?key=${fbApiKey}`;
+      // Lee TODOS los docs de races_sync (un doc por carrera + _meta)
+      const url = `https://firestore.googleapis.com/v1/projects/${fbProjectId}/databases/(default)/documents/races_sync?key=${fbApiKey}&pageSize=50`;
       const r = await fetch(url);
-      if (!r.ok) throw new Error("No hay datos en Firebase");
-      const doc = await r.json();
+      if (!r.ok) throw new Error(`Firebase error ${r.status}`);
+      const d = await r.json();
 
-      // Parsear campos de Firestore
-      const fields = doc.fields || {};
-      const carrerasRaw = fields.carreras?.stringValue
-        ? JSON.parse(fields.carreras.stringValue)
-        : null;
-      const updatedAt = fields.updated_at?.stringValue || null;
-
-      if (!carrerasRaw || carrerasRaw.length === 0) {
+      if (!d.documents || d.documents.length === 0) {
         throw new Error("Colección vacía");
       }
 
-      // Normalizar — asegurar que tengan todos los campos necesarios
-      const normalized = carrerasRaw.map((c, i) => ({
-        id: c.id || i + 1,
-        name: c.name || c.nombre || "Sin nombre",
-        date: c.date || c.fecha || "",
-        distance: c.distance || c.distancia || "10K",
-        location: c.location || c.ubicacion || "Buenos Aires",
-        terrain: c.terrain || c.terreno || "asfalto",
-        weather: c.weather || "variable",
-        difficulty: c.difficulty || c.dificultad || "moderado",
-        image: c.image || raceImage(c.distance || c.distancia),
-        registered: c.registered || 0,
-        prize: c.prize || c.premio || "Medalla finisher",
-        source: c.source || "dondecorrer",
-        tourism: c.tourism || {
-          zone: c.location || "Buenos Aires",
-          hotel_zone: "Buenos Aires",
-          parking: "Consultar organización",
-          metro: "Consultar mapa",
-          cultural: "Buenos Aires",
-        },
-      }));
+      const now = new Date().toISOString().split("T")[0];
+      const normalized = [];
+      let syncedAt = null;
 
-      // Filtrar solo futuras
-      const now = new Date();
-      const futuras = normalized.filter(c => new Date(c.date) > now);
+      for (const doc of d.documents) {
+        const id = doc.name.split("/").pop();
 
-      if (futuras.length > 0) {
-        setRaces(futuras);
+        // Saltar el doc de metadata
+        if (id === "_meta") {
+          const meta = fromFS(doc);
+          syncedAt = meta?.updated_at || null;
+          continue;
+        }
+
+        const c = fromFS(doc);
+        if (!c || !c.date) continue;
+
+        // Solo carreras futuras
+        if (c.date < now) continue;
+
+        normalized.push({
+          id:         c.id       || id,
+          name:       c.name     || c.nombre    || "Sin nombre",
+          date:       c.date     || c.fecha     || "",
+          distance:   c.distance || c.distancia || "10K",
+          location:   c.location || c.ubicacion || "Buenos Aires",
+          terrain:    c.terrain  || c.terreno   || "asfalto",
+          weather:    c.weather  || "variable",
+          difficulty: c.difficulty || c.dificultad || "moderado",
+          image:      c.image    || raceImage(c.distance || c.distancia || ""),
+          registered: Number(c.registered) || 0,
+          prize:      c.prize    || c.premio    || "Medalla finisher",
+          source:     c.source   || "dondecorrer",
+          syncedAt:   c.syncedAt || syncedAt    || null,
+          tourism:    c.tourism  || {
+            zone:       c.location || "Buenos Aires",
+            hotel_zone: "Buenos Aires",
+            parking:    "Consultar organización",
+            metro:      "Consultar mapa",
+            cultural:   "Buenos Aires",
+          },
+        });
+      }
+
+      // Ordenar por fecha ascendente
+      normalized.sort((a, b) => a.date.localeCompare(b.date));
+
+      if (normalized.length > 0) {
+        setRaces(normalized);
         setSource("firebase");
-        setLastSync(updatedAt);
-        console.log(`[useRaces] Loaded ${futuras.length} races from Firebase (sync: ${updatedAt})`);
+        setLastSync(syncedAt);
+        console.log(`[useRaces] ${normalized.length} carreras cargadas desde Firebase (sync: ${syncedAt})`);
       } else {
-        console.log("[useRaces] No upcoming races in Firebase, using fallback");
+        console.log("[useRaces] Sin carreras futuras en Firebase, usando fallback");
         setSource("local");
       }
     } catch (err) {
-      console.log("[useRaces] Firebase load failed, using fallback:", err.message);
+      console.log("[useRaces] Firebase falló, usando fallback:", err.message);
       setSource("local");
     }
     setLoading(false);

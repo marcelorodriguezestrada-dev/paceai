@@ -89,7 +89,7 @@ Respondés ÚNICAMENTE con JSON válido sin markdown ni texto adicional.`,
         role: "user",
         content: `Analizá el siguiente contenido y extraé TODAS las carreras de running de Argentina.
 Para cada carrera necesito:
-- id (número entero único)
+- id (string único, ej: "race_001")
 - name (nombre completo)
 - date (YYYY-MM-DD)
 - distance ("5K", "10K", "21K", "42K", "30K", etc)
@@ -100,6 +100,7 @@ Para cada carrera necesito:
 - image (un emoji representativo)
 - registered (número estimado de inscriptos)
 - prize (descripción del premio)
+- tourism (objeto con: zone, hotel_zone, parking, metro, cultural)
 
 Formato de respuesta:
 {
@@ -121,12 +122,24 @@ ${htmlContext}`,
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
-  // Auth para llamadas manuales GET
+  // CORS para llamadas desde el AdminPanel
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(200).end();
+
+  // Auth
   if (req.method === "GET") {
     if (req.query?.secret !== SYNC_SECRET) {
       return res.status(401).json({ error: "Unauthorized. Usá ?secret=TU_SECRET" });
     }
-  } else if (req.method !== "POST") {
+  } else if (req.method === "POST") {
+    // Llamada desde AdminPanel — verificar secret en body
+    const { secret } = req.body || {};
+    if (secret !== SYNC_SECRET) {
+      return res.status(401).json({ error: "Unauthorized." });
+    }
+  } else {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
@@ -153,12 +166,23 @@ export default async function handler(req, res) {
 
     console.log(`[sync-races] ${result.carreras.length} carreras extraídas`);
 
-    // 3. Guardar en Firebase
-    await fbSet("races_sync", "current", {
-      carreras: result.carreras,
-      updated_at: result.updated_at || new Date().toISOString(),
-      source: result.source || "dondecorrer.com",
+    const syncedAt = new Date().toISOString();
+
+    // 3. Guardar un documento por carrera (compatible con el frontend)
+    for (const carrera of result.carreras) {
+      const docId = String(carrera.id || `race_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
+      await fbSet("races_sync", docId, {
+        ...carrera,
+        syncedAt,
+        source: result.source || "dondecorrer.com",
+      });
+    }
+
+    // 4. Metadata aparte (para el AdminPanel)
+    await fbSet("races_sync", "_meta", {
+      updated_at: syncedAt,
       count: result.carreras.length,
+      source: result.source || "dondecorrer.com",
     });
 
     console.log("[sync-races] Guardado en Firebase OK");
@@ -166,7 +190,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       count: result.carreras.length,
-      updated_at: result.updated_at,
+      updated_at: syncedAt,
       races: result.carreras.map(c => `${c.date} — ${c.name} (${c.distance})`),
     });
 
