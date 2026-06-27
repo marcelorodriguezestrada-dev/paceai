@@ -124,9 +124,27 @@ ${htmlContext}`,
 
   const data = await response.json();
   let text = data.choices[0]?.message?.content || "";
+
+  // ── DEBUG ──
+  console.log("[sync-races] Groq raw response (primeros 500 chars):", text.slice(0, 500));
+  console.log("[sync-races] Groq finish_reason:", data.choices[0]?.finish_reason);
+
   text = text.replace(/```(?:json)?\n?|```/g, "").trim();
   const match = text.match(/\{[\s\S]*\}/);
-  return JSON.parse(match ? match[0] : text);
+
+  if (!match) {
+    console.error("[sync-races] No se encontró JSON en la respuesta:", text.slice(0, 300));
+    throw new Error(`Groq no devolvió JSON válido. Respuesta: ${text.slice(0, 200)}`);
+  }
+
+  try {
+    const parsed = JSON.parse(match[0]);
+    console.log("[sync-races] Carreras parseadas:", parsed?.carreras?.length);
+    return parsed;
+  } catch (e) {
+    console.error("[sync-races] JSON.parse falló:", e.message);
+    throw new Error(`JSON inválido de Groq: ${e.message}`);
+  }
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
