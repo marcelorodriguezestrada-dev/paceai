@@ -871,7 +871,7 @@ function AuthModal({
 
 function RaceCard({ race, onClick }) {
   const days = daysUntil(race.date);
-  const dateStr = new Date(race.date).toLocaleDateString("es-AR", {
+  const dateStr = new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", {
     day: "numeric",
     month: "long",
   });
@@ -2382,7 +2382,7 @@ Hora: ${hora}`);
   const renderRace = () => {
     const race = selRace;
     if (!race) return null;
-    const dateStr = new Date(race.date).toLocaleDateString("es-AR", {
+    const dateStr = new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", {
       weekday: "long",
       day: "numeric",
       month: "long",
