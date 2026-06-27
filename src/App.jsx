@@ -538,7 +538,7 @@ const buildPlanPrompt = (
     : "CORREDOR: perfil no disponible, adaptar para principiante";
   return `Sos PaceAI, coach de running que aplica la metodología del Prof. Diego Ortiguera y los planes de Marcelo Rodríguez (maratonista élite argentino). Generás macrociclos periodizados, NO planes genéricos.
 
-CARRERA: ${race.name} · ${race.distance} · Fecha: ${race.date} · Terreno: ${race.terrain} · Clima: ${race.weather}
+CARRERA: ${race.name} · ${race.distance} · Fecha EXACTA e INAMOVIBLE: ${race.date} (${new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}) · Terreno: ${race.terrain} · Clima: ${race.weather}
 SEMANAS DISPONIBLES: ${weeksAvailable} semanas
 ${profileStr}
 ${paceStr}
@@ -557,6 +557,7 @@ REGLAS METODOLÓGICAS OBLIGATORIAS (Ortiguera/Rodríguez):
 8. CUESTAS: obligatorias en Fase Base (6-10 reps de 100-200m)
 9. PROGRESIÓN: máximo +10% volumen por semana; reducir en sharpening y tapering
 10. SERIES por fase — Base: cuestas/fartlek/progresivos · Específica: 1000-4000m · Sharpening: 400-1000m rápidos
+11. FECHA DE CARRERA FIJA: La última sesión de carrera debe ser exactamente el ${race.date}. Esta fecha es INAMOVIBLE — no la muevas ni un día.
 
 RESPONDÉ ÚNICAMENTE CON JSON VÁLIDO SIN MARKDOWN:
 {
@@ -3330,7 +3331,7 @@ Hora: ${hora}`);
         {/* Rango de fechas del plan */}
         {(() => {
           const today = planStartDate || new Date();
-          const endDate = race?.date ? new Date(race.date) : null;
+          const endDate = race?.date ? new Date(race.date + "T12:00:00") : null;
           const totalSem = semanas.length || wk || 0;
           const planEnd = endDate || new Date(today.getTime() + totalSem * 7 * 24 * 60 * 60 * 1000);
           const fmt = (d) => d.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
