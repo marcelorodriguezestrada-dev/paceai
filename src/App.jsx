@@ -1716,9 +1716,10 @@ Hora: ${hora}`);
     setActiveWeek(0);
 
     // Build structured macrocycle prompt (Ortiguera / Rodríguez methodology)
-    const raceDate = new Date(race.date);
+    const raceDate = new Date(race.date + "T12:00:00");
     const today = new Date();
-    const planCreation = today; // fecha de inicio del plan = hoy cuando se genera
+    today.setHours(12, 0, 0, 0); // mismo horario para comparación justa
+    const planCreation = today;
     const weeksAvailable = Math.max(
       4,
       Math.ceil((raceDate - planCreation) / (7 * 24 * 60 * 60 * 1000)),
