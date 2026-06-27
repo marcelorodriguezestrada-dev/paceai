@@ -1,6 +1,6 @@
 /**
  * /api/sync-races
- * Cron job semanal — extrae carreras de dondecorrer.com con Grok
+ * Cron job semanal — extrae carreras de dondecorrer.com via Jina AI + Groq
  * Vercel cron: lunes 8am (vercel.json)
  * Manual: GET /api/sync-races?secret=paceai2026
  */
@@ -35,26 +35,35 @@ async function fbSet(collection, docId, data) {
   return r.json();
 }
 
-// ── El sitio es una SPA — HTML estático no tiene carreras ─────────────────────
+// ── Fetch dondecorrer via Jina AI (renderiza la SPA gratis) ──────────────────
 async function fetchDondeCorrer() {
-  return null; // Groq genera el calendario desde su conocimiento
+  const jinaUrl = "https://r.jina.ai/https://ar.dondecorrer.com/carreras";
+  try {
+    const r = await fetch(jinaUrl, {
+      headers: {
+        "Accept": "text/plain",
+        "X-Return-Format": "markdown",
+      },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (r.ok) {
+      const text = await r.text();
+      console.log(`[sync-races] Jina OK — ${text.length} chars`);
+      return text.slice(0, 10000);
+    }
+    console.log(`[sync-races] Jina status: ${r.status}`);
+  } catch (e) {
+    console.log(`[sync-races] Jina failed: ${e.message}`);
+  }
+  return null;
 }
 
-// ── Groq extraction (sin SDK, fetch nativo) ───────────────────────────────────
-async function extractRacesWithGrok() {
-  const htmlContext = `Generá un calendario realista de carreras de running en Argentina
-para los próximos 6 meses (julio 2026 a diciembre 2026).
-Incluí AL MENOS 15 carreras variadas: 5K, 10K, 21K y 42K.
-Basate en eventos reales conocidos:
-- Maratón de Buenos Aires (42K, octubre, Palermo)
-- Media Maratón de Buenos Aires (21K, agosto, Palermo)
-- Corrida Nocturna del Rosedal (10K, varias fechas)
-- Trail Sierra de la Ventana (trail, invierno)
-- Corrida de San Silvestre (10K, diciembre)
-- Maratón de Rosario (42K, noviembre)
-- Corrida del Lago (10K, Palermo)
-- Y otras carreras populares de BA, Rosario, Córdoba y Mar del Plata.
-IMPORTANTE: el array "carreras" debe tener mínimo 15 elementos.`;
+// ── Groq extraction ───────────────────────────────────────────────────────────
+async function extractRacesWithGroq(content) {
+  const context = content
+    ? `Contenido real extraído de dondecorrer.com:\n${content}`
+    : `No se pudo obtener el sitio. Generá un calendario típico de running
+argentino para los próximos 6 meses con al menos 15 carreras reales conocidas.`;
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -64,30 +73,33 @@ IMPORTANTE: el array "carreras" debe tener mínimo 15 elementos.`;
     },
     body: JSON.stringify({
       model: "llama-3.3-70b-versatile",
-      temperature: 0.2,
-      max_tokens: 3000,
+      temperature: 0.1,
+      max_tokens: 4000,
       messages: [
         {
           role: "system",
-          content: `Sos un experto en carreras de running de Argentina.
-Respondés ÚNICAMENTE con JSON válido sin markdown ni texto adicional.`,
+          content: `Sos un extractor de datos de carreras de running de Argentina.
+Respondés ÚNICAMENTE con JSON válido sin markdown ni texto adicional.
+Usás EXACTAMENTE las fechas y nombres que aparecen en el contenido — no inventás ni modificás nada.`,
         },
         {
           role: "user",
-          content: `${htmlContext}
+          content: `Extraé TODAS las carreras de running del siguiente contenido.
+Solo incluí eventos de tipo "Running" o "Trail Running" — ignorá Triatlón, Duatlón y Ciclismo.
+Usá las fechas EXACTAS que aparecen en el texto, no las cambies.
 
 Para cada carrera generá:
 - id (string único, ej: "race_001")
-- name (nombre completo)
-- date (YYYY-MM-DD)
-- distance ("5K", "10K", "21K", "42K", "30K", etc)
-- location (ciudad/barrio)
-- terrain ("asfalto plano", "asfalto mixto", "trail", "montaña y senderos", "circuito urbano")
-- weather (estimado según la época: "verano", "otoño", "invierno", "primavera")
+- name (nombre completo exacto del evento)
+- date (YYYY-MM-DD, usando el año 2026 salvo que diga otro)
+- distance (la distancia principal: "5K", "10K", "21K", "42K", etc)
+- location (ciudad/barrio, inferí de los datos o del organizador)
+- terrain ("asfalto plano", "asfalto mixto", "trail", "circuito urbano")
+- weather (según la época: "verano", "otoño", "invierno", "primavera")
 - difficulty ("fácil" para 5K-10K, "moderado" para 15K-21K, "avanzado" para 30K+)
-- image (un emoji representativo)
-- registered (número estimado de inscriptos)
-- prize (descripción del premio)
+- image (emoji representativo)
+- registered (el número de inscriptos que aparece, o 0 si no hay)
+- prize ("Medalla finisher" por defecto salvo que se especifique otro)
 - tourism (objeto con: zone, hotel_zone, parking, metro, cultural)
 
 Formato de respuesta:
@@ -95,7 +107,9 @@ Formato de respuesta:
   "carreras": [...],
   "updated_at": "${new Date().toISOString()}",
   "source": "dondecorrer.com"
-}`,
+}
+
+${context}`,
         },
       ],
     }),
@@ -109,8 +123,8 @@ Formato de respuesta:
   const data = await response.json();
   let text = data.choices[0]?.message?.content || "";
 
-  console.log("[sync-races] Groq finish_reason:", data.choices[0]?.finish_reason);
-  console.log("[sync-races] Groq raw (primeros 300 chars):", text.slice(0, 300));
+  console.log("[sync-races] finish_reason:", data.choices[0]?.finish_reason);
+  console.log("[sync-races] raw (300 chars):", text.slice(0, 300));
 
   text = text.replace(/```(?:json)?\n?|```/g, "").trim();
   const match = text.match(/\{[\s\S]*\}/);
@@ -119,13 +133,9 @@ Formato de respuesta:
     throw new Error(`Groq no devolvió JSON válido. Respuesta: ${text.slice(0, 200)}`);
   }
 
-  try {
-    const parsed = JSON.parse(match[0]);
-    console.log("[sync-races] Carreras parseadas:", parsed?.carreras?.length);
-    return parsed;
-  } catch (e) {
-    throw new Error(`JSON inválido de Groq: ${e.message}`);
-  }
+  const parsed = JSON.parse(match[0]);
+  console.log("[sync-races] Carreras parseadas:", parsed?.carreras?.length);
+  return parsed;
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -158,10 +168,12 @@ export default async function handler(req, res) {
   console.log("[sync-races] Iniciando sync...");
 
   try {
-    await fetchDondeCorrer(); // no-op, kept for structure
+    // 1. Obtener contenido real via Jina
+    const content = await fetchDondeCorrer();
 
+    // 2. Extraer con Groq
     console.log("[sync-races] Enviando a Groq...");
-    const result = await extractRacesWithGrok();
+    const result = await extractRacesWithGroq(content);
 
     if (!result?.carreras?.length) {
       throw new Error("Groq no devolvió carreras válidas");
@@ -171,6 +183,7 @@ export default async function handler(req, res) {
 
     const syncedAt = new Date().toISOString();
 
+    // 3. Guardar en Firebase
     for (const carrera of result.carreras) {
       const docId = String(carrera.id || `race_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
       await fbSet("races_sync", docId, {
