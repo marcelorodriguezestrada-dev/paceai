@@ -24,7 +24,7 @@ export default function CalendarTimeline({
   const totalWeeks = weeks.length;
   if (totalWeeks === 0) return null;
 
-  const planStart = startDate ? new Date(startDate) : new Date();
+  const planStart = startDate ? new Date(new Date(startDate).toDateString()) : new Date();
   planStart.setHours(0, 0, 0, 0);
 
   const today = new Date();
@@ -49,7 +49,7 @@ export default function CalendarTimeline({
 
   // Hitos de carrera
   const raceMilestones = races.map((race) => {
-    const raceDate = new Date(race.date);
+    const raceDate = new Date(race.date + "T12:00:00");
     raceDate.setHours(0, 0, 0, 0);
     const diffMs = raceDate - planStart;
     const diffWeeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
