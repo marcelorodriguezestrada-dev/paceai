@@ -149,8 +149,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  if (!process.env.GROK_API_KEY) {
-    return res.status(500).json({ error: "GROK_API_KEY no configurada en Vercel" });
+  if (!process.env.GROQ_API_KEY) {
+    return res.status(500).json({ error: "GROQ_API_KEY no configurada en Vercel" });
   }
   if (!FB_PROJECT_ID || !FB_API_KEY) {
     return res.status(500).json({ error: "Variables de Firebase no configuradas" });
