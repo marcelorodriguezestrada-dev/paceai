@@ -4,6 +4,7 @@ import AdminPanel from "./components/AdminPanel";
 import DailyCoach from "./components/DailyCoach";
 import { buildMultiRacePrompt, buildRecalibrationPrompt, mergeRecalibratedWeeks } from "./utils/multiRace";
 import { generatePlanPDF } from "./utils/generatePDF";
+import { useRaces } from "./hooks/useRaces";
 
 const FB = {
   apiKey: import.meta.env.VITE_FB_API_KEY || "TU_API_KEY",
@@ -972,6 +973,15 @@ function PlanCard({ plan, onSelect, activePlanId, isAdmin }) {
 export default function RunnerAI() {
   const [view, setView] = useState("home");
 
+  // ── Carreras dinámicas desde Firebase/Grok ────────────────────────────────
+  const { races: RACES, loading: racesLoading, lastSync, source: racesSource } = useRaces(
+    FB.apiKey,
+    FB.projectId
+  );
+  const [races, setRaces] = useState(RACES); // empieza con las locales, reemplaza con Firebase
+  const [racesLoading, setRacesLoading] = useState(false);
+  const [lastRaceSync, setLastRaceSync] = useState(null);
+
   // navigate — wrapper de setView que trackea automáticamente cada cambio de pantalla
   const navigate = (newView, data = {}) => {
     setView(newView);
@@ -1086,6 +1096,62 @@ export default function RunnerAI() {
   useEffect(() => {
     chatEnd.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs]);
+
+  // ── Cargar carreras sincronizadas desde Firebase ──────────────────────────
+  useEffect(() => {
+    const loadSyncedRaces = async () => {
+      setRacesLoading(true);
+      try {
+        const r = await fetch(
+          `https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents/races_sync?key=${FB.apiKey}&pageSize=30`
+        );
+        const d = await r.json();
+        if (!d.documents || d.documents.length === 0) return;
+
+        const synced = d.documents
+          .map((doc) => {
+            const id = doc.name.split("/").pop();
+            if (id === "_meta") return null;
+            const fields = doc.fields || {};
+            const get = (k) => {
+              const f = fields[k];
+              if (!f) return null;
+              const val = f.stringValue ?? f.integerValue ?? f.doubleValue ?? f.booleanValue ?? null;
+              try { return JSON.parse(val); } catch { return val; }
+            };
+            return {
+              id: id,
+              name: get("name") || "Carrera",
+              date: get("date") || "",
+              distance: get("distance") || "—",
+              location: get("location") || "Buenos Aires",
+              terrain: get("terrain") || "asfalto",
+              weather: get("weather") || "variable",
+              difficulty: get("difficulty") || "moderado",
+              image: get("image") || "🏅",
+              registered: Number(get("registered") || 0),
+              prize: get("prize") || "Medalla finisher",
+              source: get("source") || "dondecorrer.com",
+              syncedAt: get("syncedAt") || "",
+              tourism: get("tourism") || { zone: "Buenos Aires", hotel_zone: "Buenos Aires", parking: "—", metro: "—", cultural: "Buenos Aires" },
+            };
+          })
+          .filter(Boolean)
+          .filter((r) => r.date >= new Date().toISOString().split("T")[0])
+          .sort((a, b) => a.date.localeCompare(b.date));
+
+        if (synced.length > 0) {
+          setRaces(synced);
+          setLastRaceSync(synced[0]?.syncedAt || null);
+        }
+      } catch (err) {
+        console.warn("[races] No se pudo cargar desde Firebase, usando datos locales:", err.message);
+      } finally {
+        setRacesLoading(false);
+      }
+    };
+    loadSyncedRaces();
+  }, []);
 
   // Tracking de tiempo en pantalla
   useEffect(() => {
