@@ -557,8 +557,7 @@ REGLAS METODOLÓGICAS OBLIGATORIAS (Ortiguera/Rodríguez):
 8. CUESTAS: obligatorias en Fase Base (6-10 reps de 100-200m)
 9. PROGRESIÓN: máximo +10% volumen por semana; reducir en sharpening y tapering
 10. SERIES por fase — Base: cuestas/fartlek/progresivos · Específica: 1000-4000m · Sharpening: 400-1000m rápidos
-11. FECHA DE CARRERA FIJA: La última sesión de carrera debe ser exactamente el ${race.date}. Esta fecha es INAMOVIBLE — no la muevas ni un día.
-
+11. FECHA DE CARRERA FIJA: La sesión tipo CARRERA debe estar en el día ${new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long" })} ${race.date} sin excepción. No la muevas al sábado anterior ni a ningún otro día.
 RESPONDÉ ÚNICAMENTE CON JSON VÁLIDO SIN MARKDOWN:
 {
   "macrociclo": [{"fase":"string","semanas_inicio":1,"semanas_fin":4,"objetivo":"string"}],
