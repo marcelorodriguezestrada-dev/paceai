@@ -538,6 +538,7 @@ const buildPlanPrompt = (
     : "CORREDOR: perfil no disponible, adaptar para principiante";
   return `Sos PaceAI, coach de running que aplica la metodología del Prof. Diego Ortiguera y los planes de Marcelo Rodríguez (maratonista élite argentino). Generás macrociclos periodizados, NO planes genéricos.
 
+  
 CARRERA: ${race.name} · ${race.distance} · Fecha EXACTA e INAMOVIBLE: ${race.date} (${new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}) · Terreno: ${race.terrain} · Clima: ${race.weather}
 SEMANAS DISPONIBLES: ${weeksAvailable} semanas
 ${profileStr}
@@ -547,7 +548,7 @@ MACROCICLO PERIODIZADO (${totalSemanas} semanas — respetá esta estructura):
 ${macroStr}
 
 REGLAS METODOLÓGICAS OBLIGATORIAS (Ortiguera/Rodríguez):
-1. FONDO LARGO: siempre el sábado, progresivo, llega a ${longRunPeak} en el pico
+1. FONDO LARGO: siempre el sábado, progresivo, llega a ${longRunPeak} en el pico. EXCEPCIÓN: la semana de carrera, la sesión CARRERA va el día exacto indicado en la regla 11, aunque sea domingo u otro día.
 2. CALIDAD: sesiones de intervalos/tempo/fartlek el martes y/o jueves
 3. DESCANSO: domingo post-fondo, lunes descanso activo o muy suave
 4. CALENTAMIENTO: 10-15' trote suave antes de cada sesión de calidad (obligatorio)
@@ -557,7 +558,7 @@ REGLAS METODOLÓGICAS OBLIGATORIAS (Ortiguera/Rodríguez):
 8. CUESTAS: obligatorias en Fase Base (6-10 reps de 100-200m)
 9. PROGRESIÓN: máximo +10% volumen por semana; reducir en sharpening y tapering
 10. SERIES por fase — Base: cuestas/fartlek/progresivos · Específica: 1000-4000m · Sharpening: 400-1000m rápidos
-11. FECHA DE CARRERA FIJA: La sesión tipo CARRERA debe estar en el día ${new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long" })} ${race.date} sin excepción. No la muevas al sábado anterior ni a ningún otro día.
+11. FECHA DE CARRERA FIJA: La sesión tipo "Carrera" va OBLIGATORIAMENTE el ${new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long" })} ${race.date}. Esta regla tiene PRIORIDAD MÁXIMA sobre todas las demás, incluso sobre la regla 1. No la muevas bajo ninguna circunstancia.
 RESPONDÉ ÚNICAMENTE CON JSON VÁLIDO SIN MARKDOWN:
 {
   "macrociclo": [{"fase":"string","semanas_inicio":1,"semanas_fin":4,"objetivo":"string"}],
