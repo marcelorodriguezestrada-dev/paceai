@@ -1771,6 +1771,29 @@ Hora: ${hora}`);
         throw e;
       }
 
+      // ── FIX: forzar la carrera al domingo (índice 6) ──────────────────────
+      if (plan?.semanas?.length) {
+        const lastWeek = plan.semanas[plan.semanas.length - 1];
+        if (lastWeek?.sesiones) {
+          const raceIdx = lastWeek.sesiones.findIndex(
+            s => s.tipo === "Carrera" || (s.tipo || "").toLowerCase().includes("carrera")
+          );
+          if (raceIdx !== -1 && raceIdx !== 6) {
+            const raceSession = { ...lastWeek.sesiones[raceIdx] };
+            lastWeek.sesiones[6] = raceSession;
+            lastWeek.sesiones[raceIdx] = {
+              dia: lastWeek.sesiones[raceIdx].dia,
+              tipo: "Descanso",
+              distancia: "-",
+              ritmo: "-",
+              descripcion: "Descanso activo + elongación 10min",
+              core: false,
+            };
+          }
+        }
+      }
+      // ──────────────────────────────────────────────────────────────────────
+
       const full = { ...plan, race, weeksAvailable, paceZones, macrocycle, createdAt: new Date().toISOString() };
       setTrainPlan(full);
       trackEvent("plan_generated", { raceId: race.id, weeks: weeksAvailable });
