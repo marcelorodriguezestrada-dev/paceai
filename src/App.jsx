@@ -538,7 +538,6 @@ const buildPlanPrompt = (
     : "CORREDOR: perfil no disponible, adaptar para principiante";
   return `Sos PaceAI, coach de running que aplica la metodología del Prof. Diego Ortiguera y los planes de Marcelo Rodríguez (maratonista élite argentino). Generás macrociclos periodizados, NO planes genéricos.
 
-  
 CARRERA: ${race.name} · ${race.distance} · Fecha EXACTA e INAMOVIBLE: ${race.date} (${new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}) · Terreno: ${race.terrain} · Clima: ${race.weather}
 SEMANAS DISPONIBLES: ${weeksAvailable} semanas
 ${profileStr}
@@ -559,6 +558,7 @@ REGLAS METODOLÓGICAS OBLIGATORIAS (Ortiguera/Rodríguez):
 9. PROGRESIÓN: máximo +10% volumen por semana; reducir en sharpening y tapering
 10. SERIES por fase — Base: cuestas/fartlek/progresivos · Específica: 1000-4000m · Sharpening: 400-1000m rápidos
 11. FECHA DE CARRERA FIJA: La sesión tipo "Carrera" va OBLIGATORIAMENTE el ${new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long" })} ${race.date}. Esta regla tiene PRIORIDAD MÁXIMA sobre todas las demás, incluso sobre la regla 1. No la muevas bajo ninguna circunstancia.
+12. CARRERAS EN ARGENTINA SON DOMINGO: Todas las carreras de running en Buenos Aires se corren los domingos. El día "Sábado" NUNCA es día de carrera. Si ves que pusiste la carrera en sábado, estás cometiendo un error — movela al domingo siguiente.
 RESPONDÉ ÚNICAMENTE CON JSON VÁLIDO SIN MARKDOWN:
 {
   "macrociclo": [{"fase":"string","semanas_inicio":1,"semanas_fin":4,"objetivo":"string"}],
