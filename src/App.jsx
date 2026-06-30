@@ -315,7 +315,138 @@ const RACES = [
   },
 ];
 
-const ENGINES = [
+const TRAINING_ZONES = [
+  {
+    id: "z1",
+    name: "Bosques de Palermo — Rosedal",
+    barrio: "Palermo",
+    lat: -34.5697,
+    lng: -58.4138,
+    distance: "3 km",
+    distanceOptions: "1.6 km (vuelta al lago) · 3 km (vuelta completa)",
+    terrain: "Asfalto plano, sombreado",
+    difficulty: "fácil",
+    surface: "asfalto",
+    icon: "🌳",
+    description: "El clásico de Buenos Aires. Vuelta al lago marcada cada 100m, ideal para series y pasadas. Punto de encuentro de Nike Run Club y adidas Runners los sábados 8am.",
+    tips: "Cuidado con ciclistas y rollers en hora pico. El segundo lago (frente al Golf) tiene exactamente 2km.",
+    amenities: ["Bebederos", "Baños públicos", "Estacionamiento"],
+  },
+  {
+    id: "z2",
+    name: "Reserva Ecológica Costanera Sur",
+    barrio: "Puerto Madero",
+    lat: -34.6080,
+    lng: -58.3550,
+    distance: "8.2 km",
+    distanceOptions: "8.2 km (circuito completo)",
+    terrain: "Ripio / tierra compactada",
+    difficulty: "moderado",
+    surface: "tierra",
+    icon: "🌿",
+    description: "Mayor biodiversidad de la ciudad, a la vera del Río de la Plata. Ideal para fondos largos en superficie blanda, cuida las articulaciones.",
+    tips: "No es bueno para series de velocidad por el tipo de piso. Cierra al anochecer — revisar horarios.",
+    amenities: ["Bebederos", "Baños públicos", "Vida silvestre"],
+  },
+  {
+    id: "z3",
+    name: "Costanera Norte — Costado River",
+    barrio: "Núñez",
+    lat: -34.5453,
+    lng: -58.4505,
+    distance: "10 km",
+    distanceOptions: "5 km · 10 km (ida y vuelta)",
+    terrain: "Asfalto junto al río",
+    difficulty: "fácil",
+    surface: "asfalto",
+    icon: "🏟️",
+    description: "Bordea el Estadio Monumental de River y conecta con los lagos de Palermo. Postas aeróbicas cada 2km en todo el trayecto.",
+    tips: "Muy concurrido los fines de semana. Buena opción para rodajes largos con compañía.",
+    amenities: ["Postas cada 2km", "Estacionamiento"],
+  },
+  {
+    id: "z4",
+    name: "Parque Centenario",
+    barrio: "Caballito",
+    lat: -34.6062,
+    lng: -58.4356,
+    distance: "1.8 km",
+    distanceOptions: "1.8 km (vuelta completa)",
+    terrain: "Asfalto, circuito amplio",
+    difficulty: "fácil",
+    surface: "asfalto",
+    icon: "🏞️",
+    description: "En pleno centro geográfico de la ciudad, ideal si vivís o trabajás cerca. Circuito seguro y muy popular entre corredores de todas las edades.",
+    tips: "Buena opción para repetir vueltas y sumar series cortas.",
+    amenities: ["Bebederos", "Feria de coleccionistas los domingos"],
+  },
+  {
+    id: "z5",
+    name: "Paseo de la Costa — Vicente López",
+    barrio: "Vicente López",
+    lat: -34.5267,
+    lng: -58.4747,
+    distance: "5 km",
+    distanceOptions: "2.6 km por tramo · 5 km circuito",
+    terrain: "Asfalto junto al río",
+    difficulty: "fácil",
+    surface: "asfalto",
+    icon: "🌊",
+    description: "44 hectáreas a la vera del río con anfiteatro, monumento y mirador. Trayecto plano, ideal para tempo runs.",
+    tips: "Cuenta con bebederos y estacionamientos en varios tramos del recorrido.",
+    amenities: ["Bebederos", "Baños públicos", "Juegos infantiles", "Bares"],
+  },
+  {
+    id: "z6",
+    name: "Hipódromo de San Isidro",
+    barrio: "San Isidro",
+    lat: -34.4731,
+    lng: -58.5197,
+    distance: "5 km",
+    distanceOptions: "5 km · 10 km",
+    terrain: "Tierra/ripio junto a la pista",
+    difficulty: "moderado",
+    surface: "tierra",
+    icon: "🐎",
+    description: "Correr al costado del Hipódromo se volvió un clásico. Usado en maratones y carreras de distancia de la zona norte.",
+    tips: "Por el tipo de suelo, no es ideal para velocidad pura, pero excelente para fondos largos cuidando las articulaciones.",
+    amenities: ["Hidratación", "Baños públicos"],
+  },
+  {
+    id: "z7",
+    name: "Puerto Madero — Diques",
+    barrio: "Puerto Madero",
+    lat: -34.6118,
+    lng: -58.3635,
+    distance: "7 km",
+    distanceOptions: "3-7 km según recorrido",
+    terrain: "Calles empedradas y asfalto",
+    difficulty: "fácil",
+    surface: "asfalto",
+    icon: "🌉",
+    description: "Caminos junto al río y arquitectura moderna. Ideal para arrancar el día o desconectar al atardecer. Conecta con la Reserva Ecológica.",
+    tips: "Excelente iluminación nocturna — opción segura para correr de noche.",
+    amenities: ["Restaurantes", "Bien iluminado de noche"],
+  },
+  {
+    id: "z8",
+    name: "Parque de los Niños",
+    barrio: "Núñez",
+    lat: -34.5395,
+    lng: -58.4583,
+    distance: "4 km",
+    distanceOptions: "2-4 km",
+    terrain: "Asfalto, vistas al río",
+    difficulty: "fácil",
+    surface: "asfalto",
+    icon: "🌅",
+    description: "Extremo norte de la ciudad con vistas espectaculares al río. Más tranquilo, alejado del bullicio del centro. Punto de cruce hacia el Paseo de la Costa.",
+    tips: "Combina bien con el circuito de Costanera Norte para fondos largos de +15km.",
+    amenities: ["Espacios abiertos", "Vistas al río"],
+  },
+];
+
+
   {
     id: "llm",
     name: "LLM estándar",
@@ -1106,6 +1237,8 @@ export default function RunnerAI() {
   const [tourRace, setTourRace] = useState(null);
   const [tourAI, setTourAI] = useState("");
   const [tourLoading, setTourLoading] = useState(false);
+  const [selectedZone, setSelectedZone] = useState(null);
+  const [zoneFilter, setZoneFilter] = useState("todas"); // todas | fácil | moderado
   const chatEnd = useRef(null);
   const fileRef = useRef(null);
 
@@ -2192,6 +2325,11 @@ Hora: ${hora}`);
               "🗺️",
               "Guía turística",
               "Hoteles, restaurants y actividades por sede",
+            ],
+            [
+              "📍",
+              "Zonas de entrenamiento",
+              "Mapa con circuitos por barrio: Palermo, Costanera y más",
             ],
             ["🔥", "Firebase", "Datos guardados en la nube, gratis"],
           ].map(([ic, n, d]) => (
@@ -4252,6 +4390,218 @@ Hora: ${hora}`);
     </div>
   );
 
+  const renderZones = () => {
+    const filteredZones = zoneFilter === "todas"
+      ? TRAINING_ZONES
+      : TRAINING_ZONES.filter(z => z.difficulty === zoneFilter);
+
+    const activeZone = selectedZone || filteredZones[0];
+
+    const mapSrc = activeZone
+      ? `https://www.google.com/maps?q=${activeZone.lat},${activeZone.lng}&z=15&output=embed`
+      : `https://www.google.com/maps?q=-34.58,-58.43&z=12&output=embed`;
+
+    return (
+      <div className="pw">
+        <button className="back" onClick={() => navigate("home")}>
+          ← Inicio
+        </button>
+        <div className="sh" style={{ marginBottom: 6 }}>
+          <h1 className="st">
+            ZONAS DE <span>ENTRENAMIENTO</span>
+          </h1>
+        </div>
+        <p style={{ color: "var(--mu)", fontSize: ".88rem", marginBottom: 20 }}>
+          Los circuitos más elegidos por runners en Buenos Aires. Elegí uno para ver el mapa y los detalles.
+        </p>
+
+        {/* Filtros por dificultad */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+          {[
+            ["todas", "Todas"],
+            ["fácil", "🟢 Fácil"],
+            ["moderado", "🟠 Moderado"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setZoneFilter(id)}
+              className="rpill"
+              style={{
+                background: zoneFilter === id ? "rgba(255,69,0,.15)" : "var(--bg2)",
+                borderColor: zoneFilter === id ? "var(--or)" : "var(--bd)",
+                color: zoneFilter === id ? "var(--or)" : "var(--tx)",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 18 }}>
+          {/* Lista de zonas */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 560, overflowY: "auto" }}>
+            {filteredZones.map((zone) => {
+              const isSelected = activeZone?.id === zone.id;
+              return (
+                <div
+                  key={zone.id}
+                  onClick={() => setSelectedZone(zone)}
+                  style={{
+                    background: isSelected ? "rgba(255,69,0,.08)" : "var(--bg2)",
+                    border: `1px solid ${isSelected ? "var(--or)" : "var(--bd)"}`,
+                    borderRadius: 10,
+                    padding: "14px 16px",
+                    cursor: "pointer",
+                    transition: ".15s",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: "1.3rem" }}>{zone.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: ".88rem", color: isSelected ? "var(--or)" : "var(--tx)" }}>
+                        {zone.name}
+                      </div>
+                      <div style={{ fontSize: ".75rem", color: "var(--mu)" }}>{zone.barrio}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <span
+                      className="dbadge"
+                      style={{
+                        background: diffColor[zone.difficulty] + "22",
+                        color: diffColor[zone.difficulty],
+                      }}
+                    >
+                      {zone.difficulty}
+                    </span>
+                    <span style={{
+                      fontSize: ".72rem",
+                      color: "var(--gold)",
+                      fontWeight: 700,
+                      fontFamily: "var(--fd)",
+                    }}>
+                      {zone.distance}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Mapa + detalle */}
+          <div>
+            <div style={{
+              borderRadius: 12,
+              overflow: "hidden",
+              border: "1px solid var(--bd)",
+              marginBottom: 16,
+              height: 320,
+            }}>
+              <iframe
+                title="Mapa de zona de entrenamiento"
+                src={mapSrc}
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+              />
+            </div>
+
+            {activeZone && (
+              <div style={{
+                background: "var(--bg2)",
+                border: "1px solid var(--bd)",
+                borderRadius: 12,
+                padding: 22,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                  <span style={{ fontSize: "2rem" }}>{activeZone.icon}</span>
+                  <div>
+                    <h2 style={{ fontFamily: "var(--fd)", fontSize: "1.4rem", lineHeight: 1 }}>
+                      {activeZone.name}
+                    </h2>
+                    <div style={{ color: "var(--mu)", fontSize: ".82rem", marginTop: 3 }}>
+                      📍 {activeZone.barrio}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))",
+                  gap: 10,
+                  marginBottom: 16,
+                }}>
+                  {[
+                    ["Distancia", activeZone.distanceOptions, "var(--gold)"],
+                    ["Terreno", activeZone.terrain],
+                    ["Dificultad", activeZone.difficulty, diffColor[activeZone.difficulty]],
+                  ].map(([l, v, c]) => (
+                    <div key={l} style={{
+                      background: "var(--bg3)",
+                      borderRadius: 8,
+                      padding: "10px 12px",
+                    }}>
+                      <div style={{ fontSize: ".68rem", color: "var(--mu)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
+                        {l}
+                      </div>
+                      <div style={{ fontSize: ".82rem", color: c || "var(--tx)", fontWeight: 600 }}>
+                        {v}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <p style={{ fontSize: ".88rem", color: "var(--tx)", lineHeight: 1.6, marginBottom: 14 }}>
+                  {activeZone.description}
+                </p>
+
+                <div style={{
+                  background: "rgba(255,69,0,.06)",
+                  border: "1px solid rgba(255,69,0,.15)",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  marginBottom: 14,
+                  fontSize: ".82rem",
+                  color: "var(--mu)",
+                }}>
+                  💡 <strong style={{ color: "var(--or)" }}>Tip:</strong> {activeZone.tips}
+                </div>
+
+                {activeZone.amenities?.length > 0 && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {activeZone.amenities.map((a, i) => (
+                      <span key={i} style={{
+                        fontSize: ".72rem",
+                        color: "var(--mu)",
+                        background: "var(--bg3)",
+                        padding: "4px 10px",
+                        borderRadius: 20,
+                      }}>
+                        ✓ {a}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  className="btns"
+                  style={{ marginTop: 16, width: "100%" }}
+                  onClick={() => {
+                    navigate("coach");
+                    sendMsg(`Quiero entrenar en ${activeZone.name} (${activeZone.barrio}). ¿Qué tipo de sesión me recomendás para este circuito de ${activeZone.distance}?`);
+                  }}
+                >
+                  💬 Preguntar al coach sobre esta zona
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderTourism = () => (
     <div className="tourpage">
       <button className="back" onClick={() => navigate("home")}>
@@ -4885,6 +5235,7 @@ Hora: ${hora}`);
     training: renderTraining,
     postrace: renderPostRace,
     tourism: renderTourism,
+    zones: renderZones,
     myraces: renderMyRaces,
     onboarding: renderOnboarding,
     admin: () => <AdminPanel user={user} projectId={FB.projectId} />,
@@ -4917,6 +5268,7 @@ Hora: ${hora}`);
             ["home", "Inicio"],
             ["calendar", "Carreras"],
             ["tourism", "Turismo"],
+            ["zones", "Zonas 🗺️"],
             ["postrace", "Post-carrera"],
             ["plans", "Planes"],
             ["coach", "PaceAI 🤖"],
