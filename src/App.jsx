@@ -587,6 +587,23 @@ RESPONDÉ ÚNICAMENTE CON JSON VÁLIDO SIN MARKDOWN:
 Generá exactamente ${totalSemanas} semanas. Cada semana DEBE incluir los 7 días (incluso los de descanso).`;
 };
 const daysUntil = (d) => Math.ceil((new Date(d + "T12:00:00") - new Date()) / 86400000);
+
+// Calcula la próxima fecha de cobro/vencimiento de una suscripción (30 días desde aprobación)
+const getSubscriptionExpiry = (approvedAt) => {
+  if (!approvedAt) return null;
+  const approved = new Date(approvedAt);
+  const expiry = new Date(approved.getTime() + 30 * 24 * 60 * 60 * 1000);
+  return expiry;
+};
+
+const formatExpiryInfo = (approvedAt) => {
+  const expiry = getSubscriptionExpiry(approvedAt);
+  if (!expiry) return null;
+  const now = new Date();
+  const daysLeft = Math.ceil((expiry - now) / 86400000);
+  const fmt = expiry.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+  return { date: fmt, daysLeft, isExpired: daysLeft < 0, isExpiringSoon: daysLeft >= 0 && daysLeft <= 5 };
+};
 const coachPrompt = (
   profile,
 ) => `Sos PaceAI, el coach de running más avanzado de Argentina. Tenés el conocimiento técnico de Jack Daniels, la filosofía de Murakami sobre correr, y la calidez de un entrenador porteño.
@@ -2123,6 +2140,15 @@ Hora: ${hora}`);
                 <span>
                   {activeSubscription.planName} · {activeSubscription.currency}{" "}
                   {activeSubscription.amount.toLocaleString()} · activo
+                  {(() => {
+                    const expInfo = formatExpiryInfo(activeSubscription.approvedAt);
+                    if (!expInfo) return null;
+                    return (
+                      <span style={{ color: expInfo.isExpired ? "#ef4444" : "var(--mu)" }}>
+                        {" "}· vence {expInfo.date}
+                      </span>
+                    );
+                  })()}
                 </span>
               ) : (
                 <span>BÁSICO gratis · hasta 3 carreras guardadas</span>
@@ -2699,6 +2725,58 @@ Hora: ${hora}`);
           <div style={{ marginTop: 6, color: "var(--mu)", fontSize: ".85rem" }}>
             Método: {activeSubscription.paymentType || "Desconocido"}
           </div>
+          {(() => {
+            const expInfo = formatExpiryInfo(activeSubscription.approvedAt);
+            if (!expInfo) return null;
+            return (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  background: expInfo.isExpired
+                    ? "rgba(239,68,68,.1)"
+                    : expInfo.isExpiringSoon
+                    ? "rgba(245,158,11,.1)"
+                    : "rgba(34,197,94,.08)",
+                  border: `1px solid ${
+                    expInfo.isExpired
+                      ? "rgba(239,68,68,.3)"
+                      : expInfo.isExpiringSoon
+                      ? "rgba(245,158,11,.3)"
+                      : "rgba(34,197,94,.25)"
+                  }`,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: ".72rem",
+                    color: expInfo.isExpired ? "#ef4444" : expInfo.isExpiringSoon ? "#f59e0b" : "#22c55e",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    marginBottom: 4,
+                  }}
+                >
+                  {expInfo.isExpired ? "⚠️ Plan vencido" : "📅 Próximo cobro / vencimiento"}
+                </div>
+                <div style={{ fontSize: ".88rem", color: "var(--tx)" }}>
+                  {expInfo.date}
+                  {!expInfo.isExpired && (
+                    <span style={{ color: "var(--mu)" }}>
+                      {" "}
+                      — {expInfo.daysLeft === 0 ? "es hoy" : `en ${expInfo.daysLeft} días`}
+                    </span>
+                  )}
+                </div>
+                {activeSubscription.paymentType === "admin_bypass" && (
+                  <div style={{ fontSize: ".75rem", color: "var(--mu)", marginTop: 4 }}>
+                    Plan activado en modo admin (sin pago real) — esta fecha es estimativa.
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
       {!activeSubscription && user && (
@@ -3089,10 +3167,30 @@ Hora: ${hora}`);
               <strong>Plan activo:</strong> {activeSubscription.planName} ·{" "}
               {activeSubscription.currency}{" "}
               {activeSubscription.amount.toLocaleString()}.
-              <div style={{ color: "var(--mu)", marginTop: 6 }}>
-                Se renovará automáticamente según tu medio de pago. Lo podés ver
-                también en Perfil.
-              </div>
+              {(() => {
+                const expInfo = formatExpiryInfo(activeSubscription.approvedAt);
+                if (!expInfo) return (
+                  <div style={{ color: "var(--mu)", marginTop: 6 }}>
+                    Se renovará automáticamente según tu medio de pago. Lo podés ver
+                    también en Perfil.
+                  </div>
+                );
+                return (
+                  <div style={{
+                    marginTop: 8,
+                    fontWeight: 700,
+                    color: expInfo.isExpired ? "#ef4444" : expInfo.isExpiringSoon ? "#f59e0b" : "var(--or)",
+                  }}>
+                    {expInfo.isExpired ? "⚠️ Vencido el " : "📅 Próximo cobro: "}
+                    {expInfo.date}
+                    {!expInfo.isExpired && (
+                      <span style={{ color: "var(--mu)", fontWeight: 400 }}>
+                        {" "}({expInfo.daysLeft === 0 ? "hoy" : `en ${expInfo.daysLeft} días`})
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </>
           ) : (
             <>
