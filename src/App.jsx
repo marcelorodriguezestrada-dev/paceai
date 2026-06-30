@@ -586,7 +586,7 @@ RESPONDÉ ÚNICAMENTE CON JSON VÁLIDO SIN MARKDOWN:
 }
 Generá exactamente ${totalSemanas} semanas. Cada semana DEBE incluir los 7 días (incluso los de descanso).`;
 };
-const daysUntil = (d) => Math.ceil((new Date(d) - new Date()) / 86400000);
+const daysUntil = (d) => Math.ceil((new Date(d + "T12:00:00") - new Date()) / 86400000);
 const coachPrompt = (
   profile,
 ) => `Sos PaceAI, el coach de running más avanzado de Argentina. Tenés el conocimiento técnico de Jack Daniels, la filosofía de Murakami sobre correr, y la calidez de un entrenador porteño.
@@ -873,7 +873,7 @@ function AuthModal({
 
 function RaceCard({ race, onClick }) {
   const days = daysUntil(race.date);
-  const dateStr = new Date(race.date).toLocaleDateString("es-AR", {
+  const dateStr = new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", {
     day: "numeric",
     month: "long",
   });
@@ -1717,16 +1717,14 @@ Hora: ${hora}`);
     setActiveWeek(0);
 
     // Build structured macrocycle prompt (Ortiguera / Rodríguez methodology)
-    const raceDate = new Date(race.date);
-    // FIX timezone: forzamos mediodía local para que el cálculo de semanas
-    // disponibles y la fecha de inicio del plan no se corran un día al
-    // convertir entre UTC y la zona horaria local (Argentina, UTC-3).
-    const planCreation = new Date();
-    planCreation.setHours(12, 0, 0, 0);
-    const weeksAvailable = Math.max(
-      4,
-      Math.ceil((raceDate - planCreation) / (7 * 24 * 60 * 60 * 1000)),
-    );
+    const raceDate = new Date(race.date + "T12:00:00");
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    const planCreation = today; // fecha de inicio del plan = hoy cuando se genera
+    // Calculamos en DÍAS completos y luego convertimos a semanas necesarias
+    // para que el día de la carrera quede DENTRO del rango generado.
+    const totalDays = Math.round((raceDate - planCreation) / (24 * 60 * 60 * 1000));
+    const weeksAvailable = Math.max(4, Math.floor(totalDays / 7) + 1);
     setPlanStartDate(planCreation); // guardar fecha de inicio para los cálculos de fechas
     const macrocycle = calcMacrocycle(weeksAvailable, race.distance);
     const activeProfile = pForm.weight ? pForm : profile;
@@ -1774,18 +1772,15 @@ Hora: ${hora}`);
         throw e;
       }
 
-      // ── FIX: forzar la sesión de carrera al día de semana CORRECTO ──────────
+      // ── FIX: forzar la sesión de carrera al ÍNDICE correcto dentro de la última semana ──
       // No confiamos en que la IA pusiera tipo:"Carrera" en el índice correcto.
-      // Calculamos el día de semana real de race.date y forzamos esa sesión ahí,
-      // sea cual sea el índice donde la IA la haya puesto.
+      // Calculamos el offset real en días desde planCreation hasta race.date,
+      // y de ahí derivamos en qué posición (0-6) de la última semana debe caer.
       if (plan?.semanas?.length) {
         const lastWeek = plan.semanas[plan.semanas.length - 1];
         if (lastWeek?.sesiones?.length === 7) {
-          // Día de semana real de la carrera (0=Dom, 1=Lun ... 6=Sáb en JS)
-          const raceDateObj = new Date(race.date + "T12:00:00");
-          const jsWeekday = raceDateObj.getDay(); // 0=Dom...6=Sáb
-          // Nuestro array de sesiones usa Lunes=0 ... Domingo=6
-          const correctIdx = jsWeekday === 0 ? 6 : jsWeekday - 1;
+          const totalDaysToRace = Math.round((raceDate - planCreation) / (24 * 60 * 60 * 1000));
+          const correctIdx = totalDaysToRace % 7; // posición dentro de su semana
 
           // Buscar la sesión que la IA marcó como carrera (por tipo, nombre o distancia exacta)
           const raceDistNum = parseFloat((race.distance || "").replace(/[^\d.]/g, ""));
@@ -1869,10 +1864,7 @@ Hora: ${hora}`);
     setGenPlan(true);
     navigate("training");
     setActiveWeek(0);
-    // FIX timezone: forzamos mediodía local, ver nota en genTrainPlan arriba.
-    const multiPlanStart = new Date();
-    multiPlanStart.setHours(12, 0, 0, 0);
-    setPlanStartDate(multiPlanStart);
+    setPlanStartDate(new Date());
 
     const activeProfile = pForm.weight ? pForm : profile;
     const paceZones = activeProfile?.time1600
@@ -2450,7 +2442,7 @@ Hora: ${hora}`);
   const renderRace = () => {
     const race = selRace;
     if (!race) return null;
-    const dateStr = new Date(race.date).toLocaleDateString("es-AR", {
+    const dateStr = new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", {
       weekday: "long",
       day: "numeric",
       month: "long",
@@ -3216,15 +3208,8 @@ Hora: ${hora}`);
                   className="btns"
                   onClick={() => {
                     setTrainPlan({ ...(p.plan || {}), race: p.race });
-                    // Restaurar fecha de inicio del plan desde createdAt.
-                    // FIX timezone: forzamos mediodía local para que no se
-                    // corra un día al reconstruir el Date desde el ISO string
-                    // guardado (que tiene hora UTC exacta del momento de creación).
-                    if (p.createdAt) {
-                      const restored = new Date(p.createdAt);
-                      restored.setHours(12, 0, 0, 0);
-                      setPlanStartDate(restored);
-                    }
+                    // Restaurar fecha de inicio del plan desde createdAt
+                    if (p.createdAt) setPlanStartDate(new Date(p.createdAt));
                     navigate("training");
                   }}
                 >
@@ -3405,7 +3390,7 @@ Hora: ${hora}`);
         {/* Rango de fechas del plan */}
         {(() => {
           const today = planStartDate || new Date();
-          const endDate = race?.date ? new Date(race.date) : null;
+          const endDate = race?.date ? new Date(race.date + "T12:00:00") : null;
           const totalSem = semanas.length || wk || 0;
           const planEnd = endDate || new Date(today.getTime() + totalSem * 7 * 24 * 60 * 60 * 1000);
           const fmt = (d) => d.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
@@ -3792,15 +3777,15 @@ Hora: ${hora}`);
             </div>
             {sem.sesiones.map((s, i) => {
               const planStart = planStartDate || new Date();
-              // Calcular fecha real de este día.
-              // FIX timezone: forzamos mediodía local antes de sumar días,
-              // así evitamos que setDate() cruce una medianoche en UTC y
-              // termine mostrando un día anterior al correcto en pantalla
-              // (el bug original de "la carrera del 24 muestra 23").
-              const realDate = new Date(planStart);
-              realDate.setHours(12, 0, 0, 0);
+              // Offset directo: día 0 del plan es planStart, avanzamos día a día.
+              // Forzamos mediodía para evitar bugs de zona horaria al sumar días.
               const dayOffset = activeWeek * 7 + i;
-              realDate.setDate(realDate.getDate() + dayOffset);
+              const realDate = new Date(
+                planStart.getFullYear(),
+                planStart.getMonth(),
+                planStart.getDate() + dayOffset,
+                12, 0, 0
+              );
               const mes = realDate.toLocaleDateString("es-AR", { month: "short" }).toUpperCase().replace(".", "");
               const fecha = realDate.getDate();
               const diaSem = realDate.toLocaleDateString("es-AR", { weekday: "short" });
@@ -4263,7 +4248,7 @@ Hora: ${hora}`);
       ? Math.max(
           1,
           Math.ceil(
-            (new Date(race.date) - new Date()) / (7 * 24 * 60 * 60 * 1000),
+            (new Date(race.date + "T12:00:00") - new Date()) / (7 * 24 * 60 * 60 * 1000),
           ),
         )
       : 0;
@@ -4486,7 +4471,7 @@ Hora: ${hora}`);
                 marginBottom: 12,
               }}
             >
-              CREÁ TU CUENTA
+              CREÁ TU CUENTA
             </h1>
             <p
               style={{
