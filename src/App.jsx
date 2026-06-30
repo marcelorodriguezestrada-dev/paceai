@@ -538,7 +538,7 @@ const buildPlanPrompt = (
     : "CORREDOR: perfil no disponible, adaptar para principiante";
   return `Sos PaceAI, coach de running que aplica la metodología del Prof. Diego Ortiguera y los planes de Marcelo Rodríguez (maratonista élite argentino). Generás macrociclos periodizados, NO planes genéricos.
 
-CARRERA: ${race.name} · ${race.distance} · Fecha EXACTA e INAMOVIBLE: ${race.date} (${new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}) · Terreno: ${race.terrain} · Clima: ${race.weather}
+CARRERA: ${race.name} · ${race.distance} · Fecha: ${race.date} · Terreno: ${race.terrain} · Clima: ${race.weather}
 SEMANAS DISPONIBLES: ${weeksAvailable} semanas
 ${profileStr}
 ${paceStr}
@@ -547,9 +547,9 @@ MACROCICLO PERIODIZADO (${totalSemanas} semanas — respetá esta estructura):
 ${macroStr}
 
 REGLAS METODOLÓGICAS OBLIGATORIAS (Ortiguera/Rodríguez):
-1. FONDO LARGO: siempre el sábado, progresivo, llega a ${longRunPeak} en el pico. EXCEPCIÓN: la semana de carrera, la sesión CARRERA va el día exacto indicado en la regla 11, aunque sea domingo u otro día.
+1. FONDO LARGO: siempre el sábado, progresivo, llega a ${longRunPeak} en el pico. EXCEPCIÓN: en la última semana (semana de carrera), NO hay fondo largo de sábado — ver regla 11.
 2. CALIDAD: sesiones de intervalos/tempo/fartlek el martes y/o jueves
-3. DESCANSO: domingo post-fondo, lunes descanso activo o muy suave
+3. DESCANSO: domingo post-fondo, lunes descanso activo o muy suave. EXCEPCIÓN ABSOLUTA: si el domingo es el día de la carrera (ver regla 11), el domingo NO es descanso — es el día de competencia.
 4. CALENTAMIENTO: 10-15' trote suave antes de cada sesión de calidad (obligatorio)
 5. VUELTA A LA CALMA: 10' trote suave al finalizar cualquier sesión dura
 6. FUERZA CORE: abdominales + espinales 15-20min, mínimo 3x semana (marcar core:true)
@@ -557,8 +557,9 @@ REGLAS METODOLÓGICAS OBLIGATORIAS (Ortiguera/Rodríguez):
 8. CUESTAS: obligatorias en Fase Base (6-10 reps de 100-200m)
 9. PROGRESIÓN: máximo +10% volumen por semana; reducir en sharpening y tapering
 10. SERIES por fase — Base: cuestas/fartlek/progresivos · Específica: 1000-4000m · Sharpening: 400-1000m rápidos
-11. FECHA DE CARRERA FIJA: La sesión tipo "Carrera" va OBLIGATORIAMENTE el ${new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long" })} ${race.date}. Esta regla tiene PRIORIDAD MÁXIMA sobre todas las demás, incluso sobre la regla 1. No la muevas bajo ninguna circunstancia.
-12. CARRERAS EN ARGENTINA SON DOMINGO: Todas las carreras de running en Buenos Aires se corren los domingos. El día "Sábado" NUNCA es día de carrera. Si ves que pusiste la carrera en sábado, estás cometiendo un error — movela al domingo siguiente.
+11. ⚠️ FECHA DE CARRERA — REGLA DE MÁXIMA PRIORIDAD, ANULA TODAS LAS DEMÁS: La sesión con tipo:"Carrera" va EXACTA Y OBLIGATORIAMENTE el día ${new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long" }).toUpperCase()} ${race.date}, sin excepción. Esta regla tiene prioridad absoluta sobre la regla 1 (fondo largo de sábado) y sobre la regla 3 (descanso de domingo). Si el día de carrera cae domingo, el domingo es día de "Carrera", NO de descanso. NUNCA muevas la carrera a otro día "porque los domingos son de descanso" — eso es un error grave.
+12. La carrera SIEMPRE es el último día de la última semana del plan, en la posición exacta del día de semana indicado en la regla 11 (no necesariamente el índice 6 del array — depende de qué día de semana caiga).
+
 RESPONDÉ ÚNICAMENTE CON JSON VÁLIDO SIN MARKDOWN:
 {
   "macrociclo": [{"fase":"string","semanas_inicio":1,"semanas_fin":4,"objetivo":"string"}],
@@ -872,7 +873,7 @@ function AuthModal({
 
 function RaceCard({ race, onClick }) {
   const days = daysUntil(race.date);
-  const dateStr = new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", {
+  const dateStr = new Date(race.date).toLocaleDateString("es-AR", {
     day: "numeric",
     month: "long",
   });
@@ -1716,10 +1717,9 @@ Hora: ${hora}`);
     setActiveWeek(0);
 
     // Build structured macrocycle prompt (Ortiguera / Rodríguez methodology)
-    const raceDate = new Date(race.date + "T12:00:00");
+    const raceDate = new Date(race.date);
     const today = new Date();
-    today.setHours(12, 0, 0, 0); // mismo horario para comparación justa
-    const planCreation = today;
+    const planCreation = today; // fecha de inicio del plan = hoy cuando se genera
     const weeksAvailable = Math.max(
       4,
       Math.ceil((raceDate - planCreation) / (7 * 24 * 60 * 60 * 1000)),
@@ -1771,22 +1771,59 @@ Hora: ${hora}`);
         throw e;
       }
 
-      // ── FIX: forzar la carrera al domingo (índice 6) ──────────────────────
+      // ── FIX: forzar la sesión de carrera al día de semana CORRECTO ──────────
+      // No confiamos en que la IA pusiera tipo:"Carrera" en el índice correcto.
+      // Calculamos el día de semana real de race.date y forzamos esa sesión ahí,
+      // sea cual sea el índice donde la IA la haya puesto.
       if (plan?.semanas?.length) {
         const lastWeek = plan.semanas[plan.semanas.length - 1];
-        if (lastWeek?.sesiones) {
-          const raceIdx = lastWeek.sesiones.findIndex(
-            s => s.tipo === "Carrera" || (s.tipo || "").toLowerCase().includes("carrera")
-          );
-          if (raceIdx !== -1 && raceIdx !== 6) {
-            const raceSession = { ...lastWeek.sesiones[raceIdx] };
-            lastWeek.sesiones[6] = raceSession;
+        if (lastWeek?.sesiones?.length === 7) {
+          // Día de semana real de la carrera (0=Dom, 1=Lun ... 6=Sáb en JS)
+          const raceDateObj = new Date(race.date + "T12:00:00");
+          const jsWeekday = raceDateObj.getDay(); // 0=Dom...6=Sáb
+          // Nuestro array de sesiones usa Lunes=0 ... Domingo=6
+          const correctIdx = jsWeekday === 0 ? 6 : jsWeekday - 1;
+
+          // Buscar la sesión que la IA marcó como carrera (por tipo, nombre o distancia exacta)
+          const raceDistNum = parseFloat((race.distance || "").replace(/[^\d.]/g, ""));
+          const raceIdx = lastWeek.sesiones.findIndex((s) => {
+            const tipoLower = (s.tipo || "").toLowerCase();
+            const descLower = (s.descripcion || "").toLowerCase();
+            const distNum = parseFloat((s.distancia || "").replace(/[^\d.]/g, ""));
+            return (
+              tipoLower.includes("carrera") ||
+              tipoLower.includes("competitivo") ||
+              tipoLower.includes("competencia") ||
+              descLower.includes(race.name.toLowerCase().slice(0, 12)) ||
+              (raceDistNum && distNum === raceDistNum)
+            );
+          });
+
+          if (raceIdx !== -1 && raceIdx !== correctIdx) {
+            // Mover la sesión de carrera al día correcto
+            const raceSession = { ...lastWeek.sesiones[raceIdx], tipo: "Carrera" };
+            const diaCorrecto = lastWeek.sesiones[correctIdx].dia; // preservar el nombre del día
+            lastWeek.sesiones[correctIdx] = { ...raceSession, dia: diaCorrecto };
+            // El día donde estaba antes pasa a ser descanso/tapering suave
             lastWeek.sesiones[raceIdx] = {
               dia: lastWeek.sesiones[raceIdx].dia,
               tipo: "Descanso",
               distancia: "-",
               ritmo: "-",
-              descripcion: "Descanso activo + elongación 10min",
+              descripcion: "Descanso activo + elongación 10min. Preparación mental para la carrera.",
+              core: false,
+            };
+          } else if (raceIdx === correctIdx) {
+            // Ya está en el día correcto, solo normalizamos el tipo
+            lastWeek.sesiones[raceIdx] = { ...lastWeek.sesiones[raceIdx], tipo: "Carrera" };
+          } else if (raceIdx === -1) {
+            // La IA no generó ninguna sesión de carrera reconocible — la insertamos nosotros
+            lastWeek.sesiones[correctIdx] = {
+              dia: lastWeek.sesiones[correctIdx].dia,
+              tipo: "Carrera",
+              distancia: race.distance,
+              ritmo: "Competitivo",
+              descripcion: `${race.name} — ¡Es el día! Confiá en tu preparación.`,
               core: false,
             };
           }
@@ -2407,7 +2444,7 @@ Hora: ${hora}`);
   const renderRace = () => {
     const race = selRace;
     if (!race) return null;
-    const dateStr = new Date(race.date + "T12:00:00").toLocaleDateString("es-AR", {
+    const dateStr = new Date(race.date).toLocaleDateString("es-AR", {
       weekday: "long",
       day: "numeric",
       month: "long",
@@ -3355,7 +3392,7 @@ Hora: ${hora}`);
         {/* Rango de fechas del plan */}
         {(() => {
           const today = planStartDate || new Date();
-          const endDate = race?.date ? new Date(race.date + "T12:00:00") : null;
+          const endDate = race?.date ? new Date(race.date) : null;
           const totalSem = semanas.length || wk || 0;
           const planEnd = endDate || new Date(today.getTime() + totalSem * 7 * 24 * 60 * 60 * 1000);
           const fmt = (d) => d.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
