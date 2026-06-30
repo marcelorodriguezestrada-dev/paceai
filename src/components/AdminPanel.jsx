@@ -91,7 +91,6 @@ function RacesSyncPanel({ projectId, token }) {
   const [lastSync, setLastSync]     = useState(null);
   const [raceCount, setRaceCount]   = useState(null);
 
-  // Leer metadata del último sync
   useEffect(() => {
     const loadMeta = async () => {
       try {
@@ -132,14 +131,7 @@ function RacesSyncPanel({ projectId, token }) {
   };
 
   return (
-    <div style={{
-      background: "#111",
-      border: "1px solid #2a2a2a",
-      borderRadius: 12,
-      padding: 20,
-      marginBottom: 24,
-    }}>
-      {/* Header */}
+    <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 20, marginBottom: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: ".72rem", color: "#FF4500", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>
@@ -179,7 +171,6 @@ function RacesSyncPanel({ projectId, token }) {
         </button>
       </div>
 
-      {/* Estado actual */}
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: syncResult || syncError ? 14 : 0 }}>
         <div style={{ padding: "8px 14px", background: "#0d0d0d", border: "1px solid #1a1a1a", borderRadius: 8 }}>
           <div style={{ fontSize: ".68rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>Último sync</div>
@@ -199,7 +190,6 @@ function RacesSyncPanel({ projectId, token }) {
         </div>
       </div>
 
-      {/* Resultado exitoso */}
       {syncResult && (
         <div style={{ marginTop: 14, padding: "12px 16px", background: "rgba(34,197,94,.06)", border: "1px solid rgba(34,197,94,.2)", borderRadius: 8 }}>
           <div style={{ fontSize: ".78rem", color: "#22c55e", fontWeight: 700, marginBottom: 8 }}>
@@ -213,7 +203,6 @@ function RacesSyncPanel({ projectId, token }) {
         </div>
       )}
 
-      {/* Error */}
       {syncError && (
         <div style={{ marginTop: 14, padding: "12px 16px", background: "rgba(239,68,68,.06)", border: "1px solid rgba(239,68,68,.2)", borderRadius: 8, fontSize: ".82rem", color: "#ef4444" }}>
           ❌ Error: {syncError}
@@ -257,7 +246,7 @@ export default function AdminPanel({ user, projectId }) {
 
   useEffect(() => { loadData(); }, []);
 
-  // ── Métricas ──
+  // ── Métricas base ──
   const totalEvents   = events.length;
   const uniqueUsers   = [...new Set(events.map(e => e.userId).filter(Boolean))].length;
   const now           = Date.now();
@@ -313,8 +302,42 @@ export default function AdminPanel({ user, projectId }) {
     Object.entries(timeByScreen).map(([v, { total, count }]) => [v, Math.round(total / count)])
   );
 
+  // ── Estadísticas por día ──
+  const dailyStats = events.reduce((acc, e) => {
+    const day = (e.ts || "").slice(0, 10); // YYYY-MM-DD
+    if (!day) return acc;
+    if (!acc[day]) {
+      acc[day] = {
+        date: day,
+        total: 0,
+        uniqueUsers: new Set(),
+        plansGenerated: 0,
+        generateClicks: 0,
+        pageViews: 0,
+        errors: 0,
+        bySource: {},
+      };
+    }
+    acc[day].total += 1;
+    if (e.userId && e.userId !== "anonymous") acc[day].uniqueUsers.add(e.userId);
+    if (e.event === "plan_generated" || e.event === "multi_plan_generated") acc[day].plansGenerated += 1;
+    if (e.event === "generate_click") acc[day].generateClicks += 1;
+    if (e.event === "page_view") acc[day].pageViews += 1;
+    if (e.event === "plan_error") acc[day].errors += 1;
+    const src = e.utm_source || "directo";
+    acc[day].bySource[src] = (acc[day].bySource[src] || 0) + 1;
+    return acc;
+  }, {});
+
+  const dailyArray = Object.values(dailyStats)
+    .map(d => ({ ...d, uniqueUsers: d.uniqueUsers.size }))
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  const maxDailyTotal = Math.max(...dailyArray.map(d => d.total), 1);
+
   const TABS = [
     { id: "overview", label: "📊 Overview"   },
+    { id: "daily",    label: "📈 Diario"     },
     { id: "nav",      label: "🧭 Navegación" },
     { id: "funnel",   label: "🔽 Funnel"     },
     { id: "sources",  label: "🌐 Fuentes"    },
@@ -388,6 +411,72 @@ export default function AdminPanel({ user, projectId }) {
             {Object.entries(eventCounts).sort((a, b) => b[1] - a[1]).map(([evt, c]) => <MiniBar key={evt} label={evt.replace(/_/g, " ")} value={c} max={maxEventCount} color="#FF4500" />)}
             {Object.keys(eventCounts).length === 0 && <div style={{ color: "#444", fontSize: ".82rem" }}>Sin datos aún</div>}
           </div>
+        </div>
+      )}
+
+      {/* ── Diario ── */}
+      {tab === "daily" && (
+        <div style={{ display: "grid", gap: 18 }}>
+          <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 20 }}>
+            <div style={{ fontSize: ".72rem", color: "#FF4500", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 16 }}>
+              Eventos por día (últimos 14 días)
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 140, overflowX: "auto", paddingBottom: 4 }}>
+              {[...dailyArray].slice(0, 14).reverse().map(d => {
+                const pct = Math.max(4, Math.round((d.total / maxDailyTotal) * 100));
+                const dateObj = new Date(d.date + "T12:00:00");
+                const label = dateObj.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
+                return (
+                  <div key={d.date} style={{ flex: "1 0 32px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <div style={{ fontSize: ".65rem", color: "#FF4500", fontWeight: 700 }}>{d.total}</div>
+                    <div style={{ width: "100%", height: `${pct}%`, minHeight: 4, background: "linear-gradient(180deg, #FF4500, #FF450055)", borderRadius: "4px 4px 0 0" }} />
+                    <div style={{ fontSize: ".62rem", color: "#555", whiteSpace: "nowrap" }}>{label}</div>
+                  </div>
+                );
+              })}
+              {dailyArray.length === 0 && <div style={{ color: "#444", fontSize: ".85rem" }}>Sin datos aún.</div>}
+            </div>
+          </div>
+
+          <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 24 }}>
+            <div style={{ fontSize: ".72rem", color: "#FF4500", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 16 }}>
+              Detalle diario ({dailyArray.length} días con actividad)
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 90px 90px 90px 90px 80px", gap: 10, padding: "6px 0", marginBottom: 6, borderBottom: "1px solid #2a2a2a" }}>
+              {["Fecha", "Actividad", "Usuarios", "Clicks gen.", "Planes", "Vistas", "Errores"].map(h => (
+                <span key={h} style={{ fontSize: ".66rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</span>
+              ))}
+            </div>
+            <div style={{ maxHeight: 460, overflowY: "auto" }}>
+              {dailyArray.map(d => {
+                const dateObj = new Date(d.date + "T12:00:00");
+                const label = dateObj.toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short" });
+                const pct = Math.round((d.total / maxDailyTotal) * 100);
+                return (
+                  <div key={d.date} style={{ display: "grid", gridTemplateColumns: "100px 1fr 90px 90px 90px 90px 80px", gap: 10, padding: "9px 0", borderBottom: "1px solid #1a1a1a", alignItems: "center", fontSize: ".8rem" }}>
+                    <span style={{ color: "#ccc", textTransform: "capitalize" }}>{label}</span>
+                    <div style={{ height: 6, background: "#1a1a1a", borderRadius: 3 }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: "#FF4500", borderRadius: 3 }} />
+                    </div>
+                    <span style={{ color: "#3b82f6", fontWeight: 700 }}>{d.uniqueUsers}</span>
+                    <span style={{ color: "#8b5cf6", fontWeight: 700 }}>{d.generateClicks}</span>
+                    <span style={{ color: "#22c55e", fontWeight: 700 }}>{d.plansGenerated}</span>
+                    <span style={{ color: "#555" }}>{d.pageViews}</span>
+                    <span style={{ color: d.errors > 0 ? "#ef4444" : "#444", fontWeight: d.errors > 0 ? 700 : 400 }}>{d.errors}</span>
+                  </div>
+                );
+              })}
+              {dailyArray.length === 0 && <div style={{ color: "#444", fontSize: ".85rem", padding: "20px 0" }}>Sin eventos aún.</div>}
+            </div>
+          </div>
+
+          {dailyArray.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+              <KpiCard icon="📅" label="Mejor día" value={[...dailyArray].sort((a,b) => b.total - a.total)[0]?.date.split("-").reverse().join("/") || "—"} sub={`${[...dailyArray].sort((a,b) => b.total - a.total)[0]?.total || 0} eventos`} color="#FF4500" />
+              <KpiCard icon="📊" label="Promedio diario" value={Math.round(events.length / Math.max(dailyArray.length, 1))} sub="eventos por día activo" color="#3b82f6" />
+              <KpiCard icon="🔥" label="Días con actividad" value={dailyArray.length} sub="desde el primer evento" color="#22c55e" />
+            </div>
+          )}
         </div>
       )}
 
