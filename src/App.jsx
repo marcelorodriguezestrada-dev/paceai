@@ -331,6 +331,11 @@ const TRAINING_ZONES = [
     description: "El clásico de Buenos Aires. Vuelta al lago marcada cada 100m, ideal para series y pasadas. Punto de encuentro de Nike Run Club y adidas Runners los sábados 8am.",
     tips: "Cuidado con ciclistas y rollers en hora pico. El segundo lago (frente al Golf) tiene exactamente 2km.",
     amenities: ["Bebederos", "Baños públicos", "Estacionamiento"],
+    route: [
+      [-34.5662,-58.4192],[-34.5668,-58.4175],[-34.5678,-58.4158],[-34.5692,-58.4148],
+      [-34.5708,-58.4143],[-34.5722,-58.4148],[-34.5730,-58.4162],[-34.5728,-58.4178],
+      [-34.5718,-58.4190],[-34.5704,-58.4197],[-34.5690,-58.4197],[-34.5676,-58.4192],[-34.5662,-58.4192],
+    ],
   },
   {
     id: "z2",
@@ -345,8 +350,14 @@ const TRAINING_ZONES = [
     surface: "tierra",
     icon: "🌿",
     description: "Mayor biodiversidad de la ciudad, a la vera del Río de la Plata. Ideal para fondos largos en superficie blanda, cuida las articulaciones.",
-    tips: "No es bueno para series de velocidad por el tipo de piso. Cierra al anochecer — revisar horarios.",
+    tips: "No es bueno para series de velocidad. Cierra al anochecer — revisar horarios.",
     amenities: ["Bebederos", "Baños públicos", "Vida silvestre"],
+    route: [
+      [-34.6025,-58.3610],[-34.6040,-58.3575],[-34.6055,-58.3545],[-34.6075,-58.3520],
+      [-34.6100,-58.3505],[-34.6125,-58.3500],[-34.6148,-58.3510],[-34.6155,-58.3530],
+      [-34.6148,-58.3555],[-34.6135,-58.3575],[-34.6115,-58.3590],[-34.6090,-58.3600],
+      [-34.6065,-58.3608],[-34.6040,-58.3615],[-34.6025,-58.3610],
+    ],
   },
   {
     id: "z3",
@@ -360,9 +371,14 @@ const TRAINING_ZONES = [
     difficulty: "fácil",
     surface: "asfalto",
     icon: "🏟️",
-    description: "Bordea el Estadio Monumental de River y conecta con los lagos de Palermo. Postas aeróbicas cada 2km en todo el trayecto.",
-    tips: "Muy concurrido los fines de semana. Buena opción para rodajes largos con compañía.",
+    description: "Bordea el Estadio Monumental de River y conecta con los lagos de Palermo. Postas aeróbicas cada 2km.",
+    tips: "Muy concurrido los fines de semana. Buena opción para rodajes largos.",
     amenities: ["Postas cada 2km", "Estacionamiento"],
+    route: [
+      [-34.5700,-58.4490],[-34.5665,-58.4490],[-34.5630,-58.4492],[-34.5595,-58.4494],
+      [-34.5560,-58.4496],[-34.5525,-58.4498],[-34.5490,-58.4500],[-34.5453,-58.4502],
+      [-34.5415,-58.4505],[-34.5380,-58.4508],[-34.5345,-58.4510],
+    ],
   },
   {
     id: "z4",
@@ -376,9 +392,14 @@ const TRAINING_ZONES = [
     difficulty: "fácil",
     surface: "asfalto",
     icon: "🏞️",
-    description: "En pleno centro geográfico de la ciudad, ideal si vivís o trabajás cerca. Circuito seguro y muy popular entre corredores de todas las edades.",
+    description: "En pleno centro geográfico de la ciudad, ideal si vivís o trabajás cerca. Muy popular entre corredores de todas las edades.",
     tips: "Buena opción para repetir vueltas y sumar series cortas.",
-    amenities: ["Bebederos", "Feria de coleccionistas los domingos"],
+    amenities: ["Bebederos", "Feria los domingos"],
+    route: [
+      [-34.6042,-58.4330],[-34.6048,-58.4315],[-34.6060,-58.4308],[-34.6075,-58.4312],
+      [-34.6082,-58.4325],[-34.6080,-58.4342],[-34.6070,-58.4355],[-34.6055,-58.4360],
+      [-34.6042,-58.4354],[-34.6042,-58.4330],
+    ],
   },
   {
     id: "z5",
@@ -392,9 +413,14 @@ const TRAINING_ZONES = [
     difficulty: "fácil",
     surface: "asfalto",
     icon: "🌊",
-    description: "44 hectáreas a la vera del río con anfiteatro, monumento y mirador. Trayecto plano, ideal para tempo runs.",
-    tips: "Cuenta con bebederos y estacionamientos en varios tramos del recorrido.",
-    amenities: ["Bebederos", "Baños públicos", "Juegos infantiles", "Bares"],
+    description: "44 hectáreas a la vera del río. Trayecto plano, ideal para tempo runs.",
+    tips: "Cuenta con bebederos y estacionamientos en varios tramos.",
+    amenities: ["Bebederos", "Baños públicos", "Bares"],
+    route: [
+      [-34.5190,-58.4720],[-34.5210,-58.4728],[-34.5230,-58.4735],[-34.5250,-58.4740],
+      [-34.5270,-58.4745],[-34.5290,-58.4748],[-34.5310,-58.4750],[-34.5330,-58.4752],
+      [-34.5350,-58.4755],
+    ],
   },
   {
     id: "z6",
@@ -408,9 +434,15 @@ const TRAINING_ZONES = [
     difficulty: "moderado",
     surface: "tierra",
     icon: "🐎",
-    description: "Correr al costado del Hipódromo se volvió un clásico. Usado en maratones y carreras de distancia de la zona norte.",
-    tips: "Por el tipo de suelo, no es ideal para velocidad pura, pero excelente para fondos largos cuidando las articulaciones.",
+    description: "Correr al costado del Hipódromo se volvió un clásico. Usado en maratones y carreras de la zona norte.",
+    tips: "Por el tipo de suelo, excelente para fondos largos cuidando articulaciones.",
     amenities: ["Hidratación", "Baños públicos"],
+    route: [
+      [-34.4695,-58.5148],[-34.4698,-58.5165],[-34.4703,-58.5183],[-34.4712,-58.5198],
+      [-34.4725,-58.5210],[-34.4740,-58.5218],[-34.4757,-58.5220],[-34.4773,-58.5215],
+      [-34.4783,-58.5202],[-34.4785,-58.5185],[-34.4778,-58.5168],[-34.4765,-58.5155],
+      [-34.4748,-58.5148],[-34.4730,-58.5148],[-34.4712,-58.5148],[-34.4695,-58.5148],
+    ],
   },
   {
     id: "z7",
@@ -424,9 +456,15 @@ const TRAINING_ZONES = [
     difficulty: "fácil",
     surface: "asfalto",
     icon: "🌉",
-    description: "Caminos junto al río y arquitectura moderna. Ideal para arrancar el día o desconectar al atardecer. Conecta con la Reserva Ecológica.",
+    description: "Caminos junto al río y arquitectura moderna. Ideal para arrancar el día o desconectar al atardecer.",
     tips: "Excelente iluminación nocturna — opción segura para correr de noche.",
     amenities: ["Restaurantes", "Bien iluminado de noche"],
+    route: [
+      [-34.6055,-58.3688],[-34.6065,-58.3672],[-34.6075,-58.3658],[-34.6085,-58.3645],
+      [-34.6095,-58.3633],[-34.6108,-58.3622],[-34.6122,-58.3615],[-34.6138,-58.3612],
+      [-34.6152,-58.3615],[-34.6162,-58.3625],[-34.6168,-58.3640],[-34.6165,-58.3655],
+      [-34.6155,-58.3668],[-34.6140,-58.3675],[-34.6125,-58.3678],
+    ],
   },
   {
     id: "z8",
@@ -440,9 +478,15 @@ const TRAINING_ZONES = [
     difficulty: "fácil",
     surface: "asfalto",
     icon: "🌅",
-    description: "Extremo norte de la ciudad con vistas espectaculares al río. Más tranquilo, alejado del bullicio del centro. Punto de cruce hacia el Paseo de la Costa.",
-    tips: "Combina bien con el circuito de Costanera Norte para fondos largos de +15km.",
+    description: "Extremo norte de la ciudad con vistas espectaculares al río. Más tranquilo que el centro.",
+    tips: "Combina bien con Costanera Norte para fondos largos de +15km.",
     amenities: ["Espacios abiertos", "Vistas al río"],
+    route: [
+      [-34.5365,-58.4558],[-34.5370,-58.4565],[-34.5378,-58.4572],[-34.5388,-58.4578],
+      [-34.5398,-58.4582],[-34.5410,-58.4585],[-34.5422,-58.4585],[-34.5430,-58.4580],
+      [-34.5432,-58.4568],[-34.5425,-58.4558],[-34.5410,-58.4552],[-34.5395,-58.4552],
+      [-34.5380,-58.4556],[-34.5365,-58.4558],
+    ],
   },
 ];
 
@@ -1120,6 +1164,166 @@ function PlanCard({ plan, onSelect, activePlanId, isAdmin }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── ZonesMap — componente independiente para cumplir reglas de hooks ─────────
+function ZonesMap({ navigate, zoneFilter, setZoneFilter, selectedZone, setSelectedZone, diffColor }) {
+  const filteredZones = zoneFilter === "todas"
+    ? TRAINING_ZONES
+    : TRAINING_ZONES.filter(z => z.difficulty === zoneFilter);
+  const activeZone = selectedZone || filteredZones[0];
+
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const layerRef = useRef(null);
+
+  useEffect(() => {
+    if (!activeZone || !mapRef.current) return;
+    const initMap = async () => {
+      if (!document.getElementById("leaflet-css")) {
+        const link = document.createElement("link");
+        link.id = "leaflet-css";
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        document.head.appendChild(link);
+      }
+      if (!window.L) {
+        await new Promise((res) => {
+          const s = document.createElement("script");
+          s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+          s.onload = res;
+          document.head.appendChild(s);
+        });
+      }
+      const L = window.L;
+      if (!mapInstanceRef.current) {
+        mapInstanceRef.current = L.map(mapRef.current, { zoomControl: true, attributionControl: false });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(mapInstanceRef.current);
+      }
+      const map = mapInstanceRef.current;
+      if (layerRef.current) layerRef.current.remove();
+
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="background:#FF4500;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.5)"></div>`,
+        iconSize: [14, 14], iconAnchor: [7, 7],
+      });
+      const group = L.layerGroup();
+      L.marker([activeZone.lat, activeZone.lng], { icon })
+        .bindPopup(`<b>${activeZone.icon} ${activeZone.name}</b><br>${activeZone.distance}`)
+        .addTo(group);
+      if (activeZone.route?.length > 1) {
+        L.polyline(activeZone.route, { color: "#FF4500", weight: 5, opacity: 0.85, lineJoin: "round", lineCap: "round" }).addTo(group);
+        L.circleMarker(activeZone.route[0], { radius: 8, fillColor: "#22c55e", color: "white", weight: 2, fillOpacity: 1 })
+          .bindPopup("Inicio del circuito").addTo(group);
+      }
+      group.addTo(map);
+      layerRef.current = group;
+      if (activeZone.route?.length > 1) {
+        map.fitBounds(L.latLngBounds(activeZone.route), { padding: [30, 30] });
+      } else {
+        map.setView([activeZone.lat, activeZone.lng], 15);
+      }
+    };
+    initMap();
+  }, [activeZone]);
+
+  useEffect(() => {
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  return (
+    <div className="pw">
+      <button className="back" onClick={() => navigate("home")}>← Inicio</button>
+      <div className="sh" style={{ marginBottom: 6 }}>
+        <h1 className="st">ZONAS DE <span>ENTRENAMIENTO</span></h1>
+      </div>
+      <p style={{ color: "var(--mu)", fontSize: ".88rem", marginBottom: 20 }}>
+        Circuitos de running en Buenos Aires. La línea roja muestra el recorrido aproximado de cada zona.
+      </p>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+        {[["todas","Todas"],["fácil","🟢 Fácil"],["moderado","🟠 Moderado"]].map(([id, label]) => (
+          <button key={id} onClick={() => { setZoneFilter(id); setSelectedZone(null); }} className="rpill"
+            style={{ background: zoneFilter === id ? "rgba(255,69,0,.15)" : "var(--bg2)", borderColor: zoneFilter === id ? "var(--or)" : "var(--bd)", color: zoneFilter === id ? "var(--or)" : "var(--tx)" }}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 18 }}>
+        {/* Lista */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 580, overflowY: "auto" }}>
+          {filteredZones.map((zone) => {
+            const isSel = activeZone?.id === zone.id;
+            return (
+              <div key={zone.id} onClick={() => setSelectedZone(zone)}
+                style={{ background: isSel ? "rgba(255,69,0,.08)" : "var(--bg2)", border: `1px solid ${isSel ? "var(--or)" : "var(--bd)"}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer", transition: ".15s" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
+                  <span style={{ fontSize: "1.2rem" }}>{zone.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: ".85rem", color: isSel ? "var(--or)" : "var(--tx)" }}>{zone.name}</div>
+                    <div style={{ fontSize: ".72rem", color: "var(--mu)" }}>{zone.barrio}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <span style={{ fontSize: ".7rem", padding: "2px 8px", borderRadius: 20, background: (diffColor[zone.difficulty] || "#888") + "22", color: diffColor[zone.difficulty] || "#888", fontWeight: 700 }}>{zone.difficulty}</span>
+                  <span style={{ fontSize: ".72rem", color: "var(--gold)", fontWeight: 700, fontFamily: "var(--fd)" }}>{zone.distance}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Mapa + detalle */}
+        <div>
+          <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid var(--bd)", height: 340, marginBottom: 14, position: "relative" }}>
+            <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
+            <div style={{ position: "absolute", bottom: 10, left: 10, zIndex: 1000, background: "rgba(0,0,0,.75)", borderRadius: 8, padding: "6px 12px", display: "flex", gap: 14, fontSize: ".72rem", color: "white" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ display: "inline-block", width: 16, height: 3, background: "#FF4500", borderRadius: 2 }} /> Circuito
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} /> Inicio
+              </span>
+            </div>
+          </div>
+          {activeZone && (
+            <div style={{ background: "var(--bg2)", border: "1px solid var(--bd)", borderRadius: 12, padding: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                <span style={{ fontSize: "1.8rem" }}>{activeZone.icon}</span>
+                <div>
+                  <h2 style={{ fontFamily: "var(--fd)", fontSize: "1.25rem", lineHeight: 1 }}>{activeZone.name}</h2>
+                  <div style={{ color: "var(--mu)", fontSize: ".78rem", marginTop: 2 }}>📍 {activeZone.barrio}</div>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 12 }}>
+                {[["Distancia", activeZone.distanceOptions, "var(--gold)"],["Terreno", activeZone.terrain],["Dificultad", activeZone.difficulty, diffColor[activeZone.difficulty]]].map(([l, v, c]) => (
+                  <div key={l} style={{ background: "var(--bg3)", borderRadius: 8, padding: "8px 10px" }}>
+                    <div style={{ fontSize: ".65rem", color: "var(--mu)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>{l}</div>
+                    <div style={{ fontSize: ".78rem", color: c || "var(--tx)", fontWeight: 600 }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: ".85rem", color: "var(--tx)", lineHeight: 1.6, marginBottom: 10 }}>{activeZone.description}</p>
+              <div style={{ background: "rgba(255,69,0,.06)", border: "1px solid rgba(255,69,0,.15)", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: ".8rem", color: "var(--mu)" }}>
+                💡 <strong style={{ color: "var(--or)" }}>Tip:</strong> {activeZone.tips}
+              </div>
+              {activeZone.amenities?.length > 0 && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {activeZone.amenities.map((a, i) => (
+                    <span key={i} style={{ fontSize: ".7rem", color: "var(--mu)", background: "var(--bg3)", padding: "3px 9px", borderRadius: 20 }}>✓ {a}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RunnerAI() {
   const [view, setView] = useState("home");
 
@@ -1245,62 +1449,6 @@ export default function RunnerAI() {
   useEffect(() => {
     chatEnd.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs]);
-
-  // ── Cargar carreras sincronizadas desde Firebase ──────────────────────────
-  useEffect(() => {
-    const loadSyncedRaces = async () => {
-      setRacesLoading(true);
-      try {
-        const r = await fetch(
-          `https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents/races_sync?key=${FB.apiKey}&pageSize=30`
-        );
-        const d = await r.json();
-        if (!d.documents || d.documents.length === 0) return;
-
-        const synced = d.documents
-          .map((doc) => {
-            const id = doc.name.split("/").pop();
-            if (id === "_meta") return null;
-            const fields = doc.fields || {};
-            const get = (k) => {
-              const f = fields[k];
-              if (!f) return null;
-              const val = f.stringValue ?? f.integerValue ?? f.doubleValue ?? f.booleanValue ?? null;
-              try { return JSON.parse(val); } catch { return val; }
-            };
-            return {
-              id: id,
-              name: get("name") || "Carrera",
-              date: get("date") || "",
-              distance: get("distance") || "—",
-              location: get("location") || "Buenos Aires",
-              terrain: get("terrain") || "asfalto",
-              weather: get("weather") || "variable",
-              difficulty: get("difficulty") || "moderado",
-              image: get("image") || "🏅",
-              registered: Number(get("registered") || 0),
-              prize: get("prize") || "Medalla finisher",
-              source: get("source") || "dondecorrer.com",
-              syncedAt: get("syncedAt") || "",
-              tourism: get("tourism") || { zone: "Buenos Aires", hotel_zone: "Buenos Aires", parking: "—", metro: "—", cultural: "Buenos Aires" },
-            };
-          })
-          .filter(Boolean)
-          .filter((r) => r.date >= new Date().toISOString().split("T")[0])
-          .sort((a, b) => a.date.localeCompare(b.date));
-
-        if (synced.length > 0) {
-          setRaces(synced);
-          setLastRaceSync(synced[0]?.syncedAt || null);
-        }
-      } catch (err) {
-        console.warn("[races] No se pudo cargar desde Firebase, usando datos locales:", err.message);
-      } finally {
-        setRacesLoading(false);
-      }
-    };
-    loadSyncedRaces();
-  }, []);
 
   // Tracking de tiempo en pantalla
   useEffect(() => {
@@ -4390,217 +4538,18 @@ Hora: ${hora}`);
     </div>
   );
 
-  const renderZones = () => {
-    const filteredZones = zoneFilter === "todas"
-      ? TRAINING_ZONES
-      : TRAINING_ZONES.filter(z => z.difficulty === zoneFilter);
+  const renderZones = () => (
+    <ZonesMap
+      navigate={navigate}
+      zoneFilter={zoneFilter}
+      setZoneFilter={setZoneFilter}
+      selectedZone={selectedZone}
+      setSelectedZone={setSelectedZone}
+      diffColor={diffColor}
+    />
+  );
 
-    const activeZone = selectedZone || filteredZones[0];
 
-    const mapSrc = activeZone
-      ? `https://www.google.com/maps?q=${activeZone.lat},${activeZone.lng}&z=15&output=embed`
-      : `https://www.google.com/maps?q=-34.58,-58.43&z=12&output=embed`;
-
-    return (
-      <div className="pw">
-        <button className="back" onClick={() => navigate("home")}>
-          ← Inicio
-        </button>
-        <div className="sh" style={{ marginBottom: 6 }}>
-          <h1 className="st">
-            ZONAS DE <span>ENTRENAMIENTO</span>
-          </h1>
-        </div>
-        <p style={{ color: "var(--mu)", fontSize: ".88rem", marginBottom: 20 }}>
-          Los circuitos más elegidos por runners en Buenos Aires. Elegí uno para ver el mapa y los detalles.
-        </p>
-
-        {/* Filtros por dificultad */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-          {[
-            ["todas", "Todas"],
-            ["fácil", "🟢 Fácil"],
-            ["moderado", "🟠 Moderado"],
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => setZoneFilter(id)}
-              className="rpill"
-              style={{
-                background: zoneFilter === id ? "rgba(255,69,0,.15)" : "var(--bg2)",
-                borderColor: zoneFilter === id ? "var(--or)" : "var(--bd)",
-                color: zoneFilter === id ? "var(--or)" : "var(--tx)",
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 18 }}>
-          {/* Lista de zonas */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 560, overflowY: "auto" }}>
-            {filteredZones.map((zone) => {
-              const isSelected = activeZone?.id === zone.id;
-              return (
-                <div
-                  key={zone.id}
-                  onClick={() => setSelectedZone(zone)}
-                  style={{
-                    background: isSelected ? "rgba(255,69,0,.08)" : "var(--bg2)",
-                    border: `1px solid ${isSelected ? "var(--or)" : "var(--bd)"}`,
-                    borderRadius: 10,
-                    padding: "14px 16px",
-                    cursor: "pointer",
-                    transition: ".15s",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                    <span style={{ fontSize: "1.3rem" }}>{zone.icon}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 700, fontSize: ".88rem", color: isSelected ? "var(--or)" : "var(--tx)" }}>
-                        {zone.name}
-                      </div>
-                      <div style={{ fontSize: ".75rem", color: "var(--mu)" }}>{zone.barrio}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <span
-                      className="dbadge"
-                      style={{
-                        background: diffColor[zone.difficulty] + "22",
-                        color: diffColor[zone.difficulty],
-                      }}
-                    >
-                      {zone.difficulty}
-                    </span>
-                    <span style={{
-                      fontSize: ".72rem",
-                      color: "var(--gold)",
-                      fontWeight: 700,
-                      fontFamily: "var(--fd)",
-                    }}>
-                      {zone.distance}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Mapa + detalle */}
-          <div>
-            <div style={{
-              borderRadius: 12,
-              overflow: "hidden",
-              border: "1px solid var(--bd)",
-              marginBottom: 16,
-              height: 320,
-            }}>
-              <iframe
-                title="Mapa de zona de entrenamiento"
-                src={mapSrc}
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                loading="lazy"
-              />
-            </div>
-
-            {activeZone && (
-              <div style={{
-                background: "var(--bg2)",
-                border: "1px solid var(--bd)",
-                borderRadius: 12,
-                padding: 22,
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                  <span style={{ fontSize: "2rem" }}>{activeZone.icon}</span>
-                  <div>
-                    <h2 style={{ fontFamily: "var(--fd)", fontSize: "1.4rem", lineHeight: 1 }}>
-                      {activeZone.name}
-                    </h2>
-                    <div style={{ color: "var(--mu)", fontSize: ".82rem", marginTop: 3 }}>
-                      📍 {activeZone.barrio}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))",
-                  gap: 10,
-                  marginBottom: 16,
-                }}>
-                  {[
-                    ["Distancia", activeZone.distanceOptions, "var(--gold)"],
-                    ["Terreno", activeZone.terrain],
-                    ["Dificultad", activeZone.difficulty, diffColor[activeZone.difficulty]],
-                  ].map(([l, v, c]) => (
-                    <div key={l} style={{
-                      background: "var(--bg3)",
-                      borderRadius: 8,
-                      padding: "10px 12px",
-                    }}>
-                      <div style={{ fontSize: ".68rem", color: "var(--mu)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
-                        {l}
-                      </div>
-                      <div style={{ fontSize: ".82rem", color: c || "var(--tx)", fontWeight: 600 }}>
-                        {v}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <p style={{ fontSize: ".88rem", color: "var(--tx)", lineHeight: 1.6, marginBottom: 14 }}>
-                  {activeZone.description}
-                </p>
-
-                <div style={{
-                  background: "rgba(255,69,0,.06)",
-                  border: "1px solid rgba(255,69,0,.15)",
-                  borderRadius: 8,
-                  padding: "10px 14px",
-                  marginBottom: 14,
-                  fontSize: ".82rem",
-                  color: "var(--mu)",
-                }}>
-                  💡 <strong style={{ color: "var(--or)" }}>Tip:</strong> {activeZone.tips}
-                </div>
-
-                {activeZone.amenities?.length > 0 && (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {activeZone.amenities.map((a, i) => (
-                      <span key={i} style={{
-                        fontSize: ".72rem",
-                        color: "var(--mu)",
-                        background: "var(--bg3)",
-                        padding: "4px 10px",
-                        borderRadius: 20,
-                      }}>
-                        ✓ {a}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <button
-                  className="btns"
-                  style={{ marginTop: 16, width: "100%" }}
-                  onClick={() => {
-                    navigate("coach");
-                    sendMsg(`Quiero entrenar en ${activeZone.name} (${activeZone.barrio}). ¿Qué tipo de sesión me recomendás para este circuito de ${activeZone.distance}?`);
-                  }}
-                >
-                  💬 Preguntar al coach sobre esta zona
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   const renderTourism = () => (
     <div className="tourpage">
