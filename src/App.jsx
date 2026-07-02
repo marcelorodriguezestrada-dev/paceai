@@ -1453,10 +1453,6 @@ function ZonesMap({ navigate, zoneFilter, setZoneFilter, selectedZone, setSelect
   );
 }
 
-
-  );
-}
-
 // ── CoachChat — chat directo corredor → Marcelo ───────────────────────────────
 function CoachChat({ user, subscription, FB }) {
   const [messages, setMessages] = useState([]);
