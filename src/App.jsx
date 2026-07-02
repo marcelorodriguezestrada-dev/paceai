@@ -1454,8 +1454,307 @@ function ZonesMap({ navigate, zoneFilter, setZoneFilter, selectedZone, setSelect
 }
 
 
+  );
+}
+
+// ── CoachChat — chat directo corredor → Marcelo ───────────────────────────────
+function CoachChat({ user, subscription, FB }) {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const bottomRef = useRef(null);
+  const isPaid = subscription?.planId && subscription.planId !== "basico";
+
+  // Cargar mensajes de Firebase
+  const loadMessages = async () => {
+    if (!user?.token || !user?.uid) return;
+    try {
+      const r = await fetch(
+        `https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents/coach_chat/${user.uid}/messages?key=${FB.apiKey}&orderBy=ts&pageSize=50`,
+        { headers: { Authorization: `Bearer ${user.token}` } }
+      );
+      const d = await r.json();
+      if (d.documents) {
+        const msgs = d.documents.map(doc => {
+          const f = doc.fields || {};
+          return {
+            id: doc.name.split("/").pop(),
+            text: f.text?.stringValue || "",
+            from: f.from?.stringValue || "user",
+            ts: f.ts?.stringValue || "",
+            read: f.read?.booleanValue || false,
+          };
+        }).sort((a, b) => a.ts.localeCompare(b.ts));
+        setMessages(msgs);
+      }
+    } catch (e) {
+      console.warn("[CoachChat] load error:", e.message);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadMessages();
+    const interval = setInterval(loadMessages, 15000); // polling cada 15s
+    return () => clearInterval(interval);
+  }, [user?.uid]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const send = async () => {
+    const txt = input.trim();
+    if (!txt || sending || !user?.uid) return;
+    setSending(true);
+    setInput("");
+
+    const ts = new Date().toISOString();
+    const msg = { text: txt, from: "user", ts, read: false };
+
+    // Optimistic UI
+    setMessages(prev => [...prev, { ...msg, id: `tmp_${Date.now()}` }]);
+
+    try {
+      // Guardar en Firebase
+      const docId = `msg_${Date.now()}`;
+      await fetch(
+        `https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents/coach_chat/${user.uid}/messages/${docId}?key=${FB.apiKey}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${user.token}` },
+          body: JSON.stringify({
+            fields: {
+              text: { stringValue: txt },
+              from: { stringValue: "user" },
+              ts: { stringValue: ts },
+              read: { booleanValue: false },
+              userName: { stringValue: user.email || "Corredor" },
+              planId: { stringValue: subscription?.planId || "basico" },
+            }
+          }),
+        }
+      );
+
+      // También guardar en colección global para que Marcelo lo vea en admin
+      await fetch(
+        `https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents/coach_inbox/${user.uid}_${docId}?key=${FB.apiKey}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${user.token}` },
+          body: JSON.stringify({
+            fields: {
+              text: { stringValue: txt },
+              from: { stringValue: "user" },
+              ts: { stringValue: ts },
+              userId: { stringValue: user.uid },
+              userName: { stringValue: user.email || "Corredor" },
+              planId: { stringValue: subscription?.planId || "basico" },
+              isPaid: { booleanValue: isPaid },
+              read: { booleanValue: false },
+            }
+          }),
+        }
+      );
+
+      // Si es plan básico → respuesta automática de IA
+      if (!isPaid) {
+        setTimeout(async () => {
+          const aiResp = await fetch("https://api.x.ai/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_GROK_KEY}` },
+            body: JSON.stringify({
+              model: "grok-3",
+              max_tokens: 300,
+              messages: [
+                { role: "system", content: `Sos PaceAI, un coach de running de Buenos Aires. Respondés mensajes de corredores de forma breve, cálida y motivadora. El corredor usa el plan básico gratuito. Al final de cada respuesta, mencioná sutilmente que con el plan ILIMITADO ($4.990/mes) tienen acceso a Marcelo Rodríguez como coach humano para respuestas personalizadas. Máximo 3 oraciones.` },
+                { role: "user", content: txt },
+              ],
+            }),
+          }).then(r => r.json());
+
+          const aiText = aiResp.choices?.[0]?.message?.content || "¡Gracias por tu mensaje! Seguí entrenando con constancia. 💪";
+          const aiTs = new Date().toISOString();
+          const aiDocId = `msg_${Date.now()}`;
+
+          await fetch(
+            `https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents/coach_chat/${user.uid}/messages/${aiDocId}?key=${FB.apiKey}`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${user.token}` },
+              body: JSON.stringify({
+                fields: {
+                  text: { stringValue: aiText },
+                  from: { stringValue: "coach_ai" },
+                  ts: { stringValue: aiTs },
+                  read: { booleanValue: true },
+                }
+              }),
+            }
+          );
+          setMessages(prev => [...prev, { id: aiDocId, text: aiText, from: "coach_ai", ts: aiTs }]);
+        }, 1800);
+      }
+
+      await loadMessages();
+    } catch (e) {
+      console.error("[CoachChat] send error:", e);
+    }
+    setSending(false);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", maxWidth: 680, margin: "0 auto", padding: "0 16px" }}>
+
+      {/* Header */}
+      <div style={{ padding: "20px 0 14px", borderBottom: "1px solid var(--bd)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--or)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", flexShrink: 0 }}>
+            🏃
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: ".95rem" }}>
+              {isPaid ? "Marcelo Rodríguez" : "PaceAI Coach"}
+            </div>
+            <div style={{ fontSize: ".75rem", color: isPaid ? "#22c55e" : "var(--mu)", display: "flex", alignItems: "center", gap: 5 }}>
+              {isPaid ? (
+                <><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} /> Coach humano · responde en el día</>
+              ) : (
+                <><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#f59e0b", display: "inline-block" }} /> Respuesta automática (plan básico)</>
+              )}
+            </div>
+          </div>
+          {isPaid && (
+            <div style={{ marginLeft: "auto", padding: "4px 12px", background: "rgba(255,69,0,.12)", border: "1px solid rgba(255,69,0,.3)", borderRadius: 20, fontSize: ".72rem", color: "var(--or)", fontWeight: 700 }}>
+              ⭐ PLAN {subscription.planId?.toUpperCase()}
+            </div>
+          )}
+        </div>
+
+        {!isPaid && (
+          <div style={{ marginTop: 12, padding: "10px 14px", background: "rgba(255,69,0,.06)", border: "1px solid rgba(255,69,0,.15)", borderRadius: 8, fontSize: ".78rem", color: "var(--mu)", lineHeight: 1.5 }}>
+            💡 En el plan básico respondé la IA. Con el plan <strong style={{ color: "var(--or)" }}>ILIMITADO ($4.990/mes)</strong> Marcelo te responde personalmente.
+          </div>
+        )}
+      </div>
+
+      {/* Mensajes */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 0", display: "flex", flexDirection: "column", gap: 12, minHeight: 300 }}>
+        {loading ? (
+          <div style={{ textAlign: "center", color: "var(--mu)", fontSize: ".85rem", padding: 40 }}>Cargando mensajes...</div>
+        ) : messages.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 20px" }}>
+            <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>💬</div>
+            <div style={{ color: "var(--tx)", fontWeight: 700, marginBottom: 6 }}>
+              {isPaid ? "Escribile a Marcelo" : "Hablá con tu coach"}
+            </div>
+            <div style={{ color: "var(--mu)", fontSize: ".82rem", lineHeight: 1.6 }}>
+              {isPaid
+                ? "Contale cómo va tu entrenamiento, tus dudas o cómo te sentís. Marcelo te responde en el día."
+                : "Preguntale lo que quieras sobre tu plan, nutrición o entrenamiento."}
+            </div>
+            {/* Sugerencias */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 20 }}>
+              {[
+                "¿Cómo puedo mejorar mi ritmo?",
+                "¿Qué como antes de un fondo largo?",
+                "Siento las piernas pesadas esta semana",
+                isPaid ? "Quiero ajustar mi plan de entrenamiento" : "¿Qué incluye el plan ILIMITADO?",
+              ].map(s => (
+                <button key={s} onClick={() => setInput(s)}
+                  style={{ background: "var(--bg2)", border: "1px solid var(--bd)", borderRadius: 20, padding: "8px 16px", color: "var(--mu)", fontSize: ".8rem", cursor: "pointer", textAlign: "left", transition: ".15s" }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          messages.map((msg) => {
+            const isUser = msg.from === "user";
+            const isAI = msg.from === "coach_ai";
+            const isCoach = msg.from === "coach";
+            return (
+              <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
+                {!isUser && (
+                  <div style={{ fontSize: ".68rem", color: "var(--mu)", marginBottom: 3, marginLeft: 4 }}>
+                    {isCoach ? "Marcelo Rodríguez" : "PaceAI Coach"}
+                  </div>
+                )}
+                <div style={{
+                  maxWidth: "78%",
+                  padding: "10px 14px",
+                  borderRadius: isUser ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                  background: isUser ? "var(--or)" : isCoach ? "rgba(34,197,94,.12)" : "var(--bg2)",
+                  border: isCoach ? "1px solid rgba(34,197,94,.25)" : isUser ? "none" : "1px solid var(--bd)",
+                  color: isUser ? "white" : "var(--tx)",
+                  fontSize: ".85rem",
+                  lineHeight: 1.5,
+                }}>
+                  {msg.text}
+                </div>
+                <div style={{ fontSize: ".65rem", color: "var(--mu)", marginTop: 3, marginLeft: isUser ? 0 : 4, marginRight: isUser ? 4 : 0 }}>
+                  {msg.ts ? new Date(msg.ts).toLocaleString("es-AR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : ""}
+                  {isCoach && " ✓ Coach humano"}
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{ padding: "12px 0 20px", borderTop: "1px solid var(--bd)" }}>
+        <div style={{ display: "flex", gap: 10 }}>
+          <textarea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+            placeholder={isPaid ? "Escribile a Marcelo..." : "Escribí tu consulta..."}
+            rows={2}
+            style={{
+              flex: 1,
+              background: "var(--bg2)",
+              border: "1px solid var(--bd)",
+              borderRadius: 12,
+              padding: "10px 14px",
+              color: "var(--tx)",
+              fontSize: ".88rem",
+              resize: "none",
+              fontFamily: "var(--fs)",
+              outline: "none",
+            }}
+          />
+          <button
+            onClick={send}
+            disabled={sending || !input.trim()}
+            style={{
+              background: sending || !input.trim() ? "var(--bg2)" : "var(--or)",
+              border: "none",
+              borderRadius: 12,
+              padding: "0 18px",
+              color: sending || !input.trim() ? "var(--mu)" : "white",
+              cursor: sending || !input.trim() ? "not-allowed" : "pointer",
+              fontSize: "1.2rem",
+              transition: ".2s",
+              flexShrink: 0,
+            }}
+          >
+            {sending ? "⏳" : "➤"}
+          </button>
+        </div>
+        <div style={{ fontSize: ".68rem", color: "var(--mu)", marginTop: 6, textAlign: "center" }}>
+          Enter para enviar · Shift+Enter para nueva línea
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RunnerAI() {
   const [view, setView] = useState("home");
+
 
   // ── Carreras dinámicas desde Firebase/Grok ────────────────────────────────
   const { races: RACES, loading: racesLoading, lastSync, source: racesSource } = useRaces(
@@ -1527,7 +1826,7 @@ export default function RunnerAI() {
   const [recalibrationData, setRecalibrationData] = useState(null); // diagnóstico y ajuste post-carrera
   const [planStartDate, setPlanStartDate] = useState(new Date()); // fecha inicio del plan
   const [adjustedSession, setAdjustedSession] = useState(null); // sesión ajustada por el coach diario
-  const [pdfLoading, setPdfLoading] = useState(false); // descarga de PDF en curso
+  const [pdfLoading, setPdfLoading] = useState(false); // descarga de PDF en curso // descarga de PDF en curso
   // ──────────────────────────────────────────────────────────────────────────
   const [selPlan, setSelPlan] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -5315,6 +5614,23 @@ Hora: ${hora}`);
     postrace: renderPostRace,
     tourism: renderTourism,
     zones: renderZones,
+    coach_chat: () => (
+      user ? (
+        <div className="pw">
+          <button className="back" onClick={() => navigate("home")}>← Inicio</button>
+          <div className="sh" style={{ marginBottom: 0 }}>
+            <h1 className="st">CHAT CON <span>TU COACH</span></h1>
+          </div>
+          <CoachChat user={user} subscription={activeSubscription} FB={FB} />
+        </div>
+      ) : (
+        <div className="pw" style={{ textAlign: "center", padding: "60px 20px" }}>
+          <div style={{ fontSize: "2.5rem", marginBottom: 16 }}>💬</div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Iniciá sesión para hablar con tu coach</div>
+          <button className="btns" onClick={() => setShowAuth(true)}>Ingresar</button>
+        </div>
+      )
+    ),
     myraces: renderMyRaces,
     onboarding: renderOnboarding,
     admin: () => <AdminPanel user={user} projectId={FB.projectId} />,
@@ -5348,6 +5664,7 @@ Hora: ${hora}`);
             ["calendar", "Carreras"],
             ["tourism", "Turismo"],
             ["zones", "Zonas 🗺️"],
+            ["coach_chat", user ? (activeSubscription?.planId !== "basico" ? "💬 Mi Coach" : "💬 Coach") : "💬 Coach"],
             ["postrace", "Post-carrera"],
             ["plans", "Planes"],
             ["coach", "PaceAI 🤖"],

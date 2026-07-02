@@ -1,6 +1,188 @@
 import { useState, useEffect } from "react";
 
 const ADMIN_EMAIL = "marcelorodriguezestrada@gmail.com";
+
+// ── InboxCoach — Marcelo ve y responde mensajes ───────────────────────────────
+function InboxCoach({ projectId, token, fbApiKey }) {
+  const [threads, setThreads] = useState([]);
+  const [activeThread, setActiveThread] = useState(null);
+  const [threadMsgs, setThreadMsgs] = useState([]);
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const loadInbox = async () => {
+    try {
+      const r = await fetch(
+        `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/coach_inbox?key=${fbApiKey}&pageSize=100`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const d = await r.json();
+      if (!d.documents) return setLoading(false);
+      const msgs = d.documents.map(doc => {
+        const f = doc.fields || {};
+        const get = k => f[k]?.stringValue ?? f[k]?.booleanValue ?? null;
+        return {
+          id: doc.name.split("/").pop(),
+          text: get("text"), from: get("from"), ts: get("ts"),
+          userId: get("userId"), userName: get("userName"),
+          planId: get("planId"), isPaid: f.isPaid?.booleanValue || false,
+          read: f.read?.booleanValue || false,
+        };
+      }).sort((a, b) => b.ts?.localeCompare(a.ts));
+
+      // Agrupar por usuario
+      const byUser = msgs.reduce((acc, m) => {
+        if (!acc[m.userId]) acc[m.userId] = { userId: m.userId, userName: m.userName, planId: m.planId, isPaid: m.isPaid, messages: [], unread: 0, lastTs: m.ts };
+        acc[m.userId].messages.push(m);
+        if (!m.read && m.from === "user") acc[m.userId].unread++;
+        if (m.ts > acc[m.userId].lastTs) acc[m.userId].lastTs = m.ts;
+        return acc;
+      }, {});
+      setThreads(Object.values(byUser).sort((a, b) => b.lastTs?.localeCompare(a.lastTs)));
+    } catch (e) { console.error("[InboxCoach]", e); }
+    setLoading(false);
+  };
+
+  const loadThread = async (userId) => {
+    setActiveThread(userId);
+    try {
+      const r = await fetch(
+        `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/coach_chat/${userId}/messages?key=${fbApiKey}&pageSize=100`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const d = await r.json();
+      const msgs = (d.documents || []).map(doc => {
+        const f = doc.fields || {};
+        return { id: doc.name.split("/").pop(), text: f.text?.stringValue || "", from: f.from?.stringValue || "", ts: f.ts?.stringValue || "" };
+      }).sort((a, b) => a.ts.localeCompare(b.ts));
+      setThreadMsgs(msgs);
+    } catch (e) { console.error("[InboxCoach] thread", e); }
+  };
+
+  const sendReply = async () => {
+    if (!reply.trim() || !activeThread || sending) return;
+    setSending(true);
+    const ts = new Date().toISOString();
+    const docId = `msg_coach_${Date.now()}`;
+    try {
+      await fetch(
+        `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/coach_chat/${activeThread}/messages/${docId}?key=${fbApiKey}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ fields: {
+            text: { stringValue: reply.trim() },
+            from: { stringValue: "coach" },
+            ts: { stringValue: ts },
+            read: { booleanValue: true },
+          }}),
+        }
+      );
+      setThreadMsgs(prev => [...prev, { id: docId, text: reply.trim(), from: "coach", ts }]);
+      setReply("");
+    } catch (e) { console.error("[InboxCoach] reply", e); }
+    setSending(false);
+  };
+
+  useEffect(() => { loadInbox(); }, []);
+
+  if (loading) return <div style={{ color: "#555", padding: 40, textAlign: "center" }}>Cargando mensajes...</div>;
+
+  const thread = threads.find(t => t.userId === activeThread);
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 16, height: 520 }}>
+      {/* Lista de usuarios */}
+      <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid #1a1a1a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: ".72rem", color: "#FF4500", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em" }}>Mensajes ({threads.length})</span>
+          <button onClick={loadInbox} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: ".75rem" }}>↻</button>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {threads.length === 0 && <div style={{ color: "#444", fontSize: ".82rem", padding: "20px 16px" }}>Sin mensajes aún.</div>}
+          {threads.map(t => (
+            <div key={t.userId} onClick={() => loadThread(t.userId)}
+              style={{ padding: "12px 16px", borderBottom: "1px solid #1a1a1a", cursor: "pointer", background: activeThread === t.userId ? "rgba(255,69,0,.08)" : "transparent", transition: ".15s" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                <span style={{ fontSize: ".8rem", fontWeight: 700, color: activeThread === t.userId ? "#FF4500" : "#ccc" }}>
+                  {t.userName?.split("@")[0] || "Corredor"}
+                </span>
+                {t.unread > 0 && (
+                  <span style={{ background: "#FF4500", color: "white", borderRadius: 20, padding: "1px 7px", fontSize: ".65rem", fontWeight: 700 }}>{t.unread}</span>
+                )}
+              </div>
+              <div style={{ fontSize: ".72rem", color: t.isPaid ? "#22c55e" : "#555" }}>
+                {t.isPaid ? "⭐ Plan pago" : "Plan básico"} · {t.messages?.length || 0} msgs
+              </div>
+              <div style={{ fontSize: ".68rem", color: "#444", marginTop: 2 }}>
+                {t.lastTs ? new Date(t.lastTs).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Conversación */}
+      <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {!activeThread ? (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#444", fontSize: ".85rem" }}>
+            Seleccioná una conversación
+          </div>
+        ) : (
+          <>
+            {/* Header del thread */}
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid #1a1a1a", display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: thread?.isPaid ? "rgba(34,197,94,.2)" : "var(--bg3,#1a1a1a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".9rem" }}>
+                {thread?.isPaid ? "⭐" : "🏃"}
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: ".85rem", color: "#ccc" }}>{thread?.userName || activeThread}</div>
+                <div style={{ fontSize: ".7rem", color: thread?.isPaid ? "#22c55e" : "#555" }}>{thread?.isPaid ? "Plan pago — respuesta personalizada" : "Plan básico — IA responde automático"}</div>
+              </div>
+            </div>
+
+            {/* Mensajes */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {threadMsgs.map(msg => {
+                const isCoach = msg.from === "coach" || msg.from === "coach_ai";
+                return (
+                  <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isCoach ? "flex-end" : "flex-start" }}>
+                    <div style={{ fontSize: ".62rem", color: "#444", marginBottom: 2 }}>
+                      {msg.from === "coach" ? "Vos (coach)" : msg.from === "coach_ai" ? "PaceAI (auto)" : "Corredor"}
+                    </div>
+                    <div style={{ maxWidth: "78%", padding: "8px 12px", borderRadius: isCoach ? "12px 12px 4px 12px" : "12px 12px 12px 4px", background: isCoach ? "rgba(255,69,0,.15)" : "#1a1a1a", border: `1px solid ${isCoach ? "rgba(255,69,0,.3)" : "#2a2a2a"}`, fontSize: ".8rem", color: "#ccc", lineHeight: 1.5 }}>
+                      {msg.text}
+                    </div>
+                    <div style={{ fontSize: ".6rem", color: "#333", marginTop: 2 }}>
+                      {msg.ts ? new Date(msg.ts).toLocaleString("es-AR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : ""}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Reply box */}
+            <div style={{ padding: "10px 16px", borderTop: "1px solid #1a1a1a", display: "flex", gap: 8 }}>
+              <textarea
+                value={reply}
+                onChange={e => setReply(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendReply(); } }}
+                placeholder="Respondé como coach..."
+                rows={2}
+                style={{ flex: 1, background: "#0d0d0d", border: "1px solid #2a2a2a", borderRadius: 8, padding: "8px 12px", color: "#ccc", fontSize: ".82rem", resize: "none", fontFamily: "inherit", outline: "none" }}
+              />
+              <button onClick={sendReply} disabled={sending || !reply.trim()}
+                style={{ background: sending || !reply.trim() ? "#1a1a1a" : "#FF4500", border: "none", borderRadius: 8, padding: "0 16px", color: sending || !reply.trim() ? "#555" : "white", cursor: sending || !reply.trim() ? "not-allowed" : "pointer", fontSize: "1.1rem" }}>
+                {sending ? "⏳" : "➤"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 const SYNC_SECRET = import.meta.env.VITE_SYNC_SECRET || "paceai2026";
 
 const fsBase = (projectId, col, doc = "") =>
@@ -343,7 +525,8 @@ export default function AdminPanel({ user, projectId }) {
     { id: "sources",  label: "🌐 Fuentes"    },
     { id: "races",    label: "🏃 Carreras"   },
     { id: "events",   label: "📋 Eventos"    },
-    { id: "users",    label: "👥 Usuarios"   },
+    { id: "inbox",   label: "💬 Inbox Coach" },
+    { id: "users",   label: "👥 Usuarios"   },
   ];
 
   if (loading) return (
@@ -649,6 +832,11 @@ export default function AdminPanel({ user, projectId }) {
       )}
 
       {/* ── Usuarios ── */}
+      {/* ── Inbox Coach ── */}
+      {tab === "inbox" && (
+        <InboxCoach projectId={pid} token={user.token} fbApiKey={import.meta.env.VITE_FB_API_KEY} />
+      )}
+
       {tab === "users" && (
         <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 24 }}>
           <div style={{ fontSize: ".72rem", color: "#FF4500", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 18 }}>Perfiles de usuarios ({users.length})</div>
