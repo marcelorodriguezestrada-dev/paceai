@@ -4017,9 +4017,18 @@ Hora: ${hora}`);
                 <div style={{ fontWeight: 800 }}>
                   {p.race?.name || "Carrera"}
                 </div>
-                <div style={{ color: "var(--mu)", fontSize: ".9rem" }}>
-                  {p.race?.distance || ""} ·{" "}
-                  {new Date(p.createdAt || Date.now()).toLocaleString()}
+                <div style={{ color: "var(--mu)", fontSize: ".82rem", marginTop: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span>
+                    {p.race?.distance || "—"}
+                    {p.race?.date && (
+                      <span style={{ color: "var(--or)", fontWeight: 600 }}>
+                        {" "}· 🏁 {new Date(p.race.date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ fontSize: ".75rem", color: "var(--mu)", opacity: .6 }}>
+                    Plan creado: {new Date(p.createdAt || Date.now()).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                  </span>
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
