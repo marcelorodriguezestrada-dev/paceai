@@ -1141,6 +1141,37 @@ function PlanCard({ plan, onSelect, activePlanId, isAdmin }) {
       <div className="pprice" style={{ color: plan.accent }}>
         {plan.price}
       </div>
+      {/* Ancla de precio — solo en planes pagos */}
+      {plan.id === "ilimitado" && (
+        <div style={{
+          marginBottom: 12,
+          padding: "6px 10px",
+          background: "rgba(34,197,94,.08)",
+          border: "1px solid rgba(34,197,94,.2)",
+          borderRadius: 8,
+          fontSize: ".72rem",
+          color: "#22c55e",
+          lineHeight: 1.4,
+        }}>
+          💡 Un coach humano en BA cuesta $30.000–$50.000/mes.<br />
+          <strong>PaceAI es 10x más barato con IA + Marcelo como coach.</strong>
+        </div>
+      )}
+      {plan.id === "experto" && (
+        <div style={{
+          marginBottom: 12,
+          padding: "6px 10px",
+          background: "rgba(255,215,0,.08)",
+          border: "1px solid rgba(255,215,0,.2)",
+          borderRadius: 8,
+          fontSize: ".72rem",
+          color: "#FFD700",
+          lineHeight: 1.4,
+        }}>
+          🏆 Acceso completo a Marcelo + métricas de élite.<br />
+          <strong>Menos que una clase de gym por mes.</strong>
+        </div>
+      )}
       {isActive && (
         <div style={{ marginBottom: 14, color: "var(--or)", fontWeight: 700 }}>
           Plan actual
@@ -2823,12 +2854,53 @@ Hora: ${hora}`);
           </p>
           <div className="hacts">
             <button className="btnp" onClick={() => navigate("calendar")}>
-              Ver carreras 2026
+              Generá tu plan gratis
             </button>
             <button className="btns" onClick={() => navigate("coach_chat")}>
               Hablar con tu coach
             </button>
           </div>
+
+          {/* Urgencia — countdown a la próxima carrera */}
+          {(() => {
+            const races = [
+              { name: "Media Maratón de Buenos Aires", date: "2026-08-16" },
+              { name: "Maratón de Buenos Aires", date: "2026-10-18" },
+              { name: "5K Nocturna del Rosedal", date: "2026-09-06" },
+            ];
+            const next = races
+              .map(r => ({ ...r, days: Math.ceil((new Date(r.date + "T12:00:00") - new Date()) / 86400000) }))
+              .filter(r => r.days > 0)
+              .sort((a, b) => a.days - b.days)[0];
+            if (!next) return null;
+            const weeks = Math.floor(next.days / 7);
+            const urgente = next.days <= 42;
+            return (
+              <div style={{
+                marginTop: 18,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 16px",
+                background: urgente ? "rgba(255,69,0,.1)" : "var(--bg2)",
+                border: `1px solid ${urgente ? "rgba(255,69,0,.35)" : "var(--bd)"}`,
+                borderRadius: 10,
+                maxWidth: 420,
+              }}>
+                <span style={{ fontSize: "1.4rem" }}>🏁</span>
+                <div>
+                  <div style={{ fontSize: ".8rem", fontWeight: 700, color: urgente ? "var(--or)" : "var(--tx)" }}>
+                    {next.name}
+                  </div>
+                  <div style={{ fontSize: ".75rem", color: "var(--mu)" }}>
+                    {urgente
+                      ? `⚡ Faltan solo ${weeks > 0 ? `${weeks} semanas (${next.days} días)` : `${next.days} días`} — empezá el plan hoy`
+                      : `Faltan ${weeks} semanas — ideal para empezar`}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           <div style={{ marginTop: 28, padding: "16px 20px", borderLeft: "3px solid var(--or)", background: "var(--bg2)", borderRadius: "0 10px 10px 0", maxWidth: 560 }}>
             <p style={{ fontSize: ".9rem", lineHeight: 1.7, color: "var(--mu)", fontStyle: "italic", marginBottom: 8 }}>
               "No importa si corrés 5K o 42K. Lo que importa es que salís a buscar algo que no se compra: la sensación de haberlo dado todo."
