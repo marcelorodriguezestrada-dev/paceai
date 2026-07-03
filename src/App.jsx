@@ -2808,24 +2808,36 @@ Hora: ${hora}`);
       <div className="hero">
         <div className="hero-bg" />
         <div className="hc">
-          <div className="htag">IA de coaching · Buenos Aires · Firebase</div>
+          <div className="htag">Buenos Aires · 2026</div>
           <h1 className="htitle">
-            CORRÉ
+            Correr no es un deporte.
             <br />
-            <span className="ac">MÁS INTELIGENTE</span>
+            <span className="ac">Es una conversación con vos mismo.</span>
           </h1>
           <p className="hsub">
-            El primer coach de running con IA para corredores porteños. No solo
-            un calendario — un sistema que te conoce, te entrena y aprende con
-            vos.
+            Después de 20 años corriendo, entendí que el entrenamiento no es el fin — es el camino.
+            Cada kilómetro activa endorfinas que limpian la mente, cada semana de constancia
+            construye una versión más fuerte de vos.{" "}
+            <strong style={{ color: "var(--tx)", fontWeight: 600 }}>
+              PaceAI convierte esa experiencia en un algoritmo que te acompaña.
+            </strong>
           </p>
           <div className="hacts">
             <button className="btnp" onClick={() => navigate("calendar")}>
-              Ver carreras 2025
+              Ver carreras 2026
             </button>
-            <button className="btns" onClick={() => navigate("coach")}>
-              Hablar con PaceAI
+            <button className="btns" onClick={() => navigate("coach_chat")}>
+              Hablar con tu coach
             </button>
+          </div>
+          <div style={{ marginTop: 28, padding: "16px 20px", borderLeft: "3px solid var(--or)", background: "var(--bg2)", borderRadius: "0 10px 10px 0", maxWidth: 580 }}>
+            <p style={{ fontSize: ".9rem", lineHeight: 1.7, color: "var(--mu)", fontStyle: "italic", marginBottom: 8 }}>
+              "No importa si corrés 5K o 42K. Lo que importa es que salís a buscar algo que no se compra:
+              la sensación de haberlo dado todo."
+            </p>
+            <p style={{ fontSize: ".78rem", color: "var(--or)", fontWeight: 700 }}>
+              — Marcelo Rodríguez · Maratonista · Creador de PaceAI
+            </p>
           </div>
           {user && (
             <div
