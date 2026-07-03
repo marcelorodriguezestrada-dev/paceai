@@ -2815,12 +2815,11 @@ Hora: ${hora}`);
             <span className="ac">Es una conversación con vos mismo.</span>
           </h1>
           <p className="hsub">
-            Después de 20 años corriendo, entendí que el entrenamiento no es el fin — es el camino.
-            Cada kilómetro activa endorfinas que limpian la mente, cada semana de constancia
-            construye una versión más fuerte de vos.{" "}
-            <strong style={{ color: "var(--tx)", fontWeight: 600 }}>
-              PaceAI convierte esa experiencia en un algoritmo que te acompaña.
-            </strong>
+            Mi papá me enseñó eso. Era mi coach antes de que yo supiera lo que era un coach.
+            Me acompañó cada salida, cada carrera, cada momento en que quería parar.
+            <br /><br />
+            Hoy construí PaceAI para que vos tengas ese mismo acompañamiento —
+            aunque no tengas a nadie al lado.
           </p>
           <div className="hacts">
             <button className="btnp" onClick={() => navigate("calendar")}>
@@ -2830,10 +2829,9 @@ Hora: ${hora}`);
               Hablar con tu coach
             </button>
           </div>
-          <div style={{ marginTop: 28, padding: "16px 20px", borderLeft: "3px solid var(--or)", background: "var(--bg2)", borderRadius: "0 10px 10px 0", maxWidth: 580 }}>
+          <div style={{ marginTop: 28, padding: "16px 20px", borderLeft: "3px solid var(--or)", background: "var(--bg2)", borderRadius: "0 10px 10px 0", maxWidth: 560 }}>
             <p style={{ fontSize: ".9rem", lineHeight: 1.7, color: "var(--mu)", fontStyle: "italic", marginBottom: 8 }}>
-              "No importa si corrés 5K o 42K. Lo que importa es que salís a buscar algo que no se compra:
-              la sensación de haberlo dado todo."
+              "No importa si corrés 5K o 42K. Lo que importa es que salís a buscar algo que no se compra: la sensación de haberlo dado todo."
             </p>
             <p style={{ fontSize: ".78rem", color: "var(--or)", fontWeight: 700 }}>
               — Marcelo Rodríguez · Maratonista · Creador de PaceAI
