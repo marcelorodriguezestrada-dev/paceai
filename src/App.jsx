@@ -5158,302 +5158,178 @@ Hora: ${hora}`);
   const renderOnboarding = () => {
     const race = selRace;
     const weeksAvail = race
-      ? Math.max(
-          1,
-          Math.ceil(
-            (new Date(race.date + "T12:00:00") - new Date()) / (7 * 24 * 60 * 60 * 1000),
-          ),
-        )
+      ? Math.max(1, Math.ceil((new Date(race.date + "T12:00:00") - new Date()) / (7 * 24 * 60 * 60 * 1000)))
       : 0;
     const zones = pForm.time1600 ? calcPaceZones(pForm.time1600) : null;
-    const paceWarn = pForm.goalTime ? validateGoalPace(pForm, race) : null;
 
     return (
       <div style={{ maxWidth: 520, margin: "0 auto", padding: "32px 24px" }}>
+
         {/* Progress bar */}
         <div style={{ display: "flex", gap: 6, marginBottom: 32 }}>
-          {[1, 2, 3].map((step) => (
-            <div
-              key={step}
-              style={{
-                flex: 1,
-                height: 4,
-                borderRadius: 2,
-                background: onboardingStep >= step ? "var(--or)" : "var(--bd)",
-                transition: "background 0.3s",
-              }}
-            />
+          {[1, 2].map((step) => (
+            <div key={step} style={{
+              flex: 1, height: 4, borderRadius: 2,
+              background: onboardingStep >= step ? "var(--or)" : "var(--bd)",
+              transition: "background 0.3s",
+            }} />
           ))}
         </div>
 
-        {/* ── STEP 1: Basic data (no login required) ── */}
+        {/* ── PASO 1: 3 preguntas clave ── */}
         {onboardingStep === 1 && (
           <>
-            <div
-              style={{
-                fontSize: ".72rem",
-                color: "var(--or)",
-                fontWeight: 700,
-                letterSpacing: "2px",
-                textTransform: "uppercase",
-                marginBottom: 8,
-              }}
-            >
-              Paso 1 de 3
+            <div style={{ fontSize: ".72rem", color: "var(--or)", fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 8 }}>
+              Paso 1 de 2
             </div>
-            <h1
-              style={{
-                fontFamily: "var(--fd)",
-                fontSize: "2rem",
-                marginBottom: 12,
-              }}
-            >
-              TUS DATOS
+            <h1 style={{ fontFamily: "var(--fd)", fontSize: "2rem", marginBottom: 12 }}>
+              CONTANOS UN POCO
             </h1>
+
+            {/* Carrera seleccionada */}
             {race && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 14px",
-                  background: "rgba(255,69,0,.08)",
-                  border: "1px solid rgba(255,69,0,.2)",
-                  borderRadius: 8,
-                  marginBottom: 16,
-                }}
-              >
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "rgba(255,69,0,.08)", border: "1px solid rgba(255,69,0,.2)", borderRadius: 8, marginBottom: 20 }}>
                 <span style={{ fontSize: "1.4rem" }}>{race.image}</span>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: ".88rem" }}>
-                    {race.name}
-                  </div>
-                  <div style={{ color: "var(--mu)", fontSize: ".78rem" }}>
-                    {race.distance} · {weeksAvail} semanas disponibles
-                  </div>
+                  <div style={{ fontWeight: 700, fontSize: ".88rem" }}>{race.name}</div>
+                  <div style={{ color: "var(--mu)", fontSize: ".78rem" }}>{race.distance} · {weeksAvail} semanas disponibles</div>
                 </div>
               </div>
             )}
-            <p
-              style={{
-                color: "var(--mu)",
-                fontSize: ".88rem",
-                marginBottom: 20,
-              }}
-            >
-              Con estos datos armamos tu plan a medida. Sin necesidad de cuenta
-              todavía.
-            </p>
-            <div className="frow">
-              <div className="fg">
-                <label className="fl">Peso (kg)</label>
-                <input
-                  className="fi2"
-                  type="number"
-                  placeholder="72"
-                  value={pForm.weight}
-                  onChange={(e) =>
-                    setPForm((p) => ({ ...p, weight: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="fg">
-                <label className="fl">Altura (cm)</label>
-                <input
-                  className="fi2"
-                  type="number"
-                  placeholder="175"
-                  value={pForm.height}
-                  onChange={(e) =>
-                    setPForm((p) => ({ ...p, height: e.target.value }))
-                  }
-                />
-              </div>
-            </div>
+
+            {/* Nivel */}
             <div className="fg">
-              <label className="fl">Nivel de corredor</label>
+              <label className="fl">¿Cuál es tu nivel?</label>
               <div className="lgrid">
                 {[
-                  ["principiante", "🌱", "Principiante"],
-                  ["moderado", "🔥", "Moderado"],
-                  ["avanzado", "⚡", "Avanzado"],
-                ].map(([id, ic, lb]) => (
-                  <div
-                    key={id}
-                    className={`lopt ${pForm.level === id ? "sel" : ""}`}
-                    onClick={() => setPForm((p) => ({ ...p, level: id }))}
-                  >
+                  ["principiante", "🌱", "Principiante", "Empezás o corrés hace poco"],
+                  ["moderado", "🔥", "Moderado", "Corrés regularmente"],
+                  ["avanzado", "⚡", "Avanzado", "Competís o entrenás fuerte"],
+                ].map(([id, ic, lb, desc]) => (
+                  <div key={id} className={`lopt ${pForm.level === id ? "sel" : ""}`}
+                    onClick={() => setPForm((p) => ({ ...p, level: id }))}>
                     <span className="lic">{ic}</span>
                     <span className="ln">{lb}</span>
+                    <span style={{ fontSize: ".7rem", color: "var(--mu)", marginTop: 2 }}>{desc}</span>
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* Días disponibles */}
             <div className="fg">
-              <label className="fl">Días disponibles para entrenar</label>
-              <select
-                className="fi2 fsel"
-                value={pForm.days}
-                onChange={(e) =>
-                  setPForm((p) => ({ ...p, days: e.target.value }))
-                }
-              >
+              <label className="fl">¿Cuántos días por semana podés entrenar?</label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {["3", "4", "5", "6"].map((d) => (
-                  <option key={d} value={d}>
-                    {d} días/semana
-                  </option>
+                  <div key={d}
+                    onClick={() => setPForm((p) => ({ ...p, days: d }))}
+                    style={{
+                      flex: 1, minWidth: 60, padding: "12px 8px", borderRadius: 10, textAlign: "center",
+                      border: `2px solid ${pForm.days === d ? "var(--or)" : "var(--bd)"}`,
+                      background: pForm.days === d ? "rgba(255,69,0,.1)" : "var(--bg2)",
+                      cursor: "pointer", fontWeight: 700, fontSize: ".95rem",
+                      color: pForm.days === d ? "var(--or)" : "var(--tx)", transition: ".15s",
+                    }}>
+                    {d}
+                    <div style={{ fontSize: ".65rem", color: "var(--mu)", fontWeight: 400, marginTop: 2 }}>días</div>
+                  </div>
                 ))}
-              </select>
+              </div>
             </div>
+
+            {/* Tiempo en 1600m — opcional */}
             <div className="fg">
               <label className="fl">
                 ⏱ Tiempo en 1.6 km{" "}
-                <span
-                  style={{
-                    color: "var(--mu)",
-                    textTransform: "none",
-                    letterSpacing: 0,
-                    fontWeight: 400,
-                  }}
-                >
-                  (opcional — mejora el cálculo de ritmos)
+                <span style={{ color: "var(--mu)", textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>
+                  (opcional — mejora los ritmos del plan)
                 </span>
               </label>
-              <input
-                className="fi2"
-                placeholder="Ej: 8:30 (minutos:segundos)"
+              <input className="fi2" placeholder="Ej: 8:30 (min:seg)"
                 value={pForm.time1600}
-                onChange={(e) =>
-                  setPForm((p) => ({ ...p, time1600: e.target.value }))
-                }
-              />
+                onChange={(e) => setPForm((p) => ({ ...p, time1600: e.target.value }))} />
               {zones && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    padding: "10px 12px",
-                    background: "rgba(255,69,0,.06)",
-                    borderRadius: 6,
-                    fontSize: ".78rem",
-                    color: "var(--mu)",
-                  }}
-                >
-                  <span style={{ color: "var(--or)", fontWeight: 700 }}>
-                    Zonas calculadas:{" "}
-                  </span>
-                  Fácil: {zones.easy} · Tempo: {zones.tempo} · Intervalos 1K:{" "}
-                  {zones.interval_1k}
+                <div style={{ marginTop: 8, padding: "10px 12px", background: "rgba(255,69,0,.06)", borderRadius: 6, fontSize: ".78rem", color: "var(--mu)" }}>
+                  <span style={{ color: "var(--or)", fontWeight: 700 }}>Zonas calculadas: </span>
+                  Fácil: {zones.easy} · Tempo: {zones.tempo} · Intervalos 1K: {zones.interval_1k}
                 </div>
               )}
             </div>
-            <button
-              className="btnp"
-              style={{ width: "100%", padding: 14, marginTop: 8 }}
+
+            <button className="btnp" style={{ width: "100%", padding: 16, marginTop: 8, fontSize: "1rem" }}
               onClick={() => {
-                if (!pForm.weight || !pForm.height) {
-                  alert("Completá peso y altura para continuar.");
-                  return;
-                }
+                if (!pForm.level) { alert("Seleccioná tu nivel para continuar."); return; }
                 setOnboardingStep(2);
-              }}
-            >
+              }}>
               Continuar →
             </button>
+            <p style={{ textAlign: "center", color: "var(--mu)", fontSize: ".75rem", marginTop: 12 }}>
+              Sin necesidad de cuenta todavía — el plan se genera gratis
+            </p>
           </>
         )}
 
-        {/* ── STEP 2: Auth ── */}
+        {/* ── PASO 2: Registro (DESPUÉS de ver el valor) ── */}
         {onboardingStep === 2 && (
           <>
-            <div
-              style={{
-                fontSize: ".72rem",
-                color: "var(--or)",
-                fontWeight: 700,
-                letterSpacing: "2px",
-                textTransform: "uppercase",
-                marginBottom: 8,
-              }}
-            >
-              Paso 2 de 3
+            <div style={{ fontSize: ".72rem", color: "var(--or)", fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 8 }}>
+              Paso 2 de 2 — ¡Último paso!
             </div>
-            <h1
-              style={{
-                fontFamily: "var(--fd)",
-                fontSize: "2rem",
-                marginBottom: 12,
-              }}
-            >
-              CREÁ TU CUENTA
+            <h1 style={{ fontFamily: "var(--fd)", fontSize: "2rem", marginBottom: 8 }}>
+              GUARDÁ TU PLAN
             </h1>
-            <p
-              style={{
-                color: "var(--mu)",
-                fontSize: ".88rem",
-                marginBottom: 20,
-              }}
-            >
-              Para guardar tu plan y acceder desde cualquier dispositivo.
-              Gratis.
+            <p style={{ color: "var(--mu)", fontSize: ".88rem", marginBottom: 20 }}>
+              Creá tu cuenta gratis para guardar el plan y acceder desde cualquier dispositivo.
             </p>
+
+            {/* Resumen de lo que se va a generar */}
+            {race && (
+              <div style={{ marginBottom: 20, padding: "12px 16px", background: "var(--bg2)", border: "1px solid var(--bd)", borderRadius: 10 }}>
+                <div style={{ fontSize: ".72rem", color: "var(--or)", fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>Tu plan a generar</div>
+                <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                  {[
+                    ["🏁", race.name],
+                    ["📅", `${weeksAvail} semanas`],
+                    ["⚡", pForm.level],
+                    ["📆", `${pForm.days} días/sem`],
+                  ].map(([ic, val]) => (
+                    <div key={val} style={{ fontSize: ".8rem", color: "var(--mu)" }}>
+                      {ic} <strong style={{ color: "var(--tx)" }}>{val}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {user ? (
-              <div
-                style={{
-                  padding: 20,
-                  borderRadius: 12,
-                  background: "rgba(34,197,94,.08)",
-                  border: "1px solid rgba(34,197,94,.3)",
-                  color: "#22c55e",
-                  marginBottom: 20,
-                }}
-              >
+              <div style={{ padding: 16, borderRadius: 10, background: "rgba(34,197,94,.08)", border: "1px solid rgba(34,197,94,.3)", color: "#22c55e", marginBottom: 16, fontSize: ".88rem" }}>
                 ✓ Sesión activa como {user.email}
               </div>
             ) : (
               <>
-                <div className="mtabs" style={{ marginBottom: 20 }}>
-                  <button
-                    className={`mtab ${authTab === "register" ? "act" : ""}`}
-                    onClick={() => setAuthTab("register")}
-                  >
-                    Crear cuenta
+                <div className="mtabs" style={{ marginBottom: 18 }}>
+                  <button className={`mtab ${authTab === "register" ? "act" : ""}`} onClick={() => setAuthTab("register")}>
+                    Crear cuenta gratis
                   </button>
-                  <button
-                    className={`mtab ${authTab === "login" ? "act" : ""}`}
-                    onClick={() => setAuthTab("login")}
-                  >
+                  <button className={`mtab ${authTab === "login" ? "act" : ""}`} onClick={() => setAuthTab("login")}>
                     Ya tengo cuenta
                   </button>
                 </div>
                 <div className="fg">
                   <label className="fl">Email</label>
-                  <input
-                    className="fi2"
-                    type="email"
-                    placeholder="tu@email.com"
+                  <input className="fi2" type="email" placeholder="tu@email.com"
                     value={authForm.email}
-                    onChange={(e) =>
-                      setAuthForm((p) => ({ ...p, email: e.target.value }))
-                    }
-                    autoComplete="email"
-                  />
+                    onChange={(e) => setAuthForm((p) => ({ ...p, email: e.target.value }))}
+                    autoComplete="email" />
                 </div>
                 <div className="fg">
                   <label className="fl">Contraseña</label>
-                  <input
-                    className="fi2"
-                    type="password"
-                    placeholder="Mínimo 6 caracteres"
+                  <input className="fi2" type="password" placeholder="Mínimo 6 caracteres"
                     value={authForm.password}
-                    onChange={(e) =>
-                      setAuthForm((p) => ({ ...p, password: e.target.value }))
-                    }
-                  />
+                    onChange={(e) => setAuthForm((p) => ({ ...p, password: e.target.value }))} />
                 </div>
                 {authErr && <div className="ferr">{authErr}</div>}
-                <button
-                  className="btnp"
-                  style={{ width: "100%", padding: 14, marginTop: 8 }}
+                <button className="btnp" style={{ width: "100%", padding: 14, marginTop: 8 }}
                   disabled={authLoading}
                   onClick={async () => {
                     setAuthErr("");
@@ -5467,226 +5343,57 @@ Hora: ${hora}`);
                       window.localStorage.setItem("paceai_user", JSON.stringify(u));
                       await refreshUserData(u);
                       setAuthForm({ email: "", password: "" });
-                      // 🔔 Notificación email
                       const hora = new Date().toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
                       notifyEmail(
                         `PaceAI — ${isReg ? "🆕 NUEVO USUARIO" : "🔑 LOGIN"}`,
                         `Email: ${u.email}\nHora: ${hora}`
                       );
-                      setOnboardingStep(3);
                     } catch (e) {
                       setAuthErr(
                         e.message
-                          .replace(
-                            "EMAIL_EXISTS",
-                            "Email ya registrado. Usá 'Ya tengo cuenta'.",
-                          )
-                          .replace(
-                            "INVALID_LOGIN_CREDENTIALS",
-                            "Email o contraseña incorrectos.",
-                          )
-                          .replace(/_/g, " "),
+                          .replace("EMAIL_EXISTS", "Email ya registrado. Usá 'Ya tengo cuenta'.")
+                          .replace("INVALID_LOGIN_CREDENTIALS", "Email o contraseña incorrectos.")
+                          .replace(/_/g, " ")
                       );
                     }
                     setAuthLoading(false);
-                  }}
-                >
-                  {authLoading
-                    ? "Cargando..."
-                    : authTab === "login"
-                      ? "Ingresar"
-                      : "Crear cuenta gratuita"}
+                  }}>
+                  {authLoading ? "Cargando..." : authTab === "login" ? "Ingresar" : "Crear cuenta gratis"}
                 </button>
               </>
             )}
-            {user && (
-              <button
-                className="btnp"
-                style={{ width: "100%", padding: 14 }}
-                onClick={() => setOnboardingStep(3)}
-              >
-                Continuar →
+
+            {/* Botón principal: generar plan */}
+            {(user) && (
+              <button className="btnp" style={{ width: "100%", padding: 16, marginTop: 12, fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}
+                onClick={async () => {
+                  if (user) {
+                    await fbSet("users", user.uid, pForm, user.token).catch(() => null);
+                    window.localStorage.setItem("paceai_profile", JSON.stringify(pForm));
+                  }
+                  setProfile(pForm);
+                  setOnboardingStep(0);
+                  if (!activeSubscription && plans.length >= 3) {
+                    setPaymentError("Has alcanzado 3 planes gratis. Activá ILIMITADO para generar más.");
+                    navigate("plans");
+                    return;
+                  }
+                  genTrainPlan(selRace, user);
+                }}>
+                🤖 Generar mi plan personalizado
               </button>
             )}
-            <button
-              className="btns"
-              style={{ width: "100%", padding: 12, marginTop: 10 }}
-              onClick={() => setOnboardingStep(1)}
-            >
-              ← Volver
-            </button>
-          </>
-        )}
 
-        {/* ── STEP 3: Lifestyle data ── */}
-        {onboardingStep === 3 && (
-          <>
-            <div
-              style={{
-                fontSize: ".72rem",
-                color: "var(--or)",
-                fontWeight: 700,
-                letterSpacing: "2px",
-                textTransform: "uppercase",
-                marginBottom: 8,
-              }}
-            >
-              Paso 3 de 3 — ¡Casi listo! 🏃
-            </div>
-            <h1
-              style={{
-                fontFamily: "var(--fd)",
-                fontSize: "2rem",
-                marginBottom: 12,
-              }}
-            >
-              TU ESTILO DE VIDA
-            </h1>
-            <p
-              style={{
-                color: "var(--mu)",
-                fontSize: ".88rem",
-                marginBottom: 20,
-              }}
-            >
-              La IA ajusta la carga del plan según tu día a día.
-            </p>
-            <div className="fg">
-              <label className="fl">¿Cómo es tu ritmo de vida?</label>
-              <div className="lgrid">
-                {[
-                  ["acelerado", "🔥", "Muy activo"],
-                  ["moderado", "🚶", "Normal"],
-                  ["tranquilo", "😌", "Tranquilo"],
-                ].map(([id, ic, lb]) => (
-                  <div
-                    key={id}
-                    className={`lopt ${pForm.lifeRhythm === id ? "sel" : ""}`}
-                    onClick={() => setPForm((p) => ({ ...p, lifeRhythm: id }))}
-                  >
-                    <span className="lic">{ic}</span>
-                    <span className="ln">{lb}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="fg">
-              <label className="fl">Alimentación</label>
-              <select
-                className="fi2 fsel"
-                value={pForm.alimentacion}
-                onChange={(e) =>
-                  setPForm((p) => ({ ...p, alimentacion: e.target.value }))
-                }
-              >
-                <option value="sin_restricciones">Sin restricciones</option>
-                <option value="carnivoro">Alta en proteínas</option>
-                <option value="vegetariano">Vegetariana</option>
-                <option value="vegano">Vegana</option>
-                <option value="keto">Keto / Baja en carbos</option>
-              </select>
-            </div>
-            <div className="fg">
-              <label className="fl">Tu nombre</label>
-              <input
-                className="fi2"
-                placeholder="¿Cómo te llamás?"
-                value={pForm.name}
-                onChange={(e) =>
-                  setPForm((p) => ({ ...p, name: e.target.value }))
-                }
-              />
-            </div>
-            <div className="fg">
-              <label className="fl">
-                Tiempo objetivo para esta carrera{" "}
-                <span
-                  style={{
-                    color: "var(--mu)",
-                    textTransform: "none",
-                    letterSpacing: 0,
-                    fontWeight: 400,
-                  }}
-                >
-                  (opcional)
-                </span>
-              </label>
-              <input
-                className="fi2"
-                placeholder={
-                  race?.distance?.includes("42")
-                    ? "Ej: 4:00:00"
-                    : race?.distance?.includes("21")
-                      ? "Ej: 2:00:00"
-                      : "Ej: 55:00"
-                }
-                value={pForm.goalTime || ""}
-                onChange={(e) =>
-                  setPForm((p) => ({ ...p, goalTime: e.target.value }))
-                }
-              />
-              {paceWarn && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    padding: "10px 12px",
-                    background: "rgba(255,165,0,.08)",
-                    borderRadius: 6,
-                    fontSize: ".78rem",
-                    color: "#ff9800",
-                  }}
-                >
-                  {paceWarn}
-                </div>
-              )}
-            </div>
-            <button
-              className="btnp"
-              style={{
-                width: "100%",
-                padding: 16,
-                marginTop: 8,
-                fontSize: "1rem",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-              }}
-              onClick={async () => {
-                if (user) {
-                  await fbSet("users", user.uid, pForm, user.token).catch(
-                    () => null,
-                  );
-                  window.localStorage.setItem(
-                    "paceai_profile",
-                    JSON.stringify(pForm),
-                  );
-                }
-                setProfile(pForm);
-                setOnboardingStep(0);
-                // Freemium check
-                if (!activeSubscription && plans.length >= 3) {
-                  setPaymentError(
-                    "Has alcanzado 3 planes gratis. Activá ILIMITADO para generar más.",
-                  );
-                  navigate("plans");
-                  return;
-                }
-                genTrainPlan(selRace, user);
-              }}
-            >
-              🤖 Generar mi plan personalizado
-            </button>
-            <button
-              className="btns"
-              style={{ width: "100%", padding: 12, marginTop: 10 }}
-              onClick={() => setOnboardingStep(2)}
-            >
+            <button className="btns" style={{ width: "100%", padding: 12, marginTop: 10 }}
+              onClick={() => setOnboardingStep(1)}>
               ← Volver
             </button>
           </>
         )}
       </div>
+    );
+  };
+
     );
   };
 
