@@ -5394,8 +5394,7 @@ Hora: ${hora}`);
     );
   };
 
-    );
-  };
+   
 
   const VIEWS = {
     home: renderHome,
