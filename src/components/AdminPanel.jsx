@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import MarketingTab from "./MarketingTab";
 
 const ADMIN_EMAIL = "marcelorodriguezestrada@gmail.com";
 
@@ -527,6 +528,7 @@ export default function AdminPanel({ user, projectId }) {
     { id: "events",   label: "📋 Eventos"    },
     { id: "inbox",   label: "💬 Inbox Coach" },
     { id: "users",   label: "👥 Usuarios"   },
+    { id: "marketing", label: "📣 Marketing" },
   ];
 
   if (loading) return (
@@ -864,6 +866,9 @@ export default function AdminPanel({ user, projectId }) {
       <div style={{ marginTop: 28, padding: "14px 18px", background: "rgba(59,130,246,.05)", border: "1px solid rgba(59,130,246,.15)", borderRadius: 10, fontSize: ".78rem", color: "#555", lineHeight: 1.6 }}>
         <strong style={{ color: "#3b82f6" }}>Nota:</strong> Para ver fuentes UTM, asegurate de que <code style={{ color: "#888" }}>trackEvent()</code> incluya <code style={{ color: "#888" }}>utm_source</code>, <code style={{ color: "#888" }}>utm_medium</code> y <code style={{ color: "#888" }}>utm_campaign</code> leídos desde sessionStorage.
       </div>
+      {tab === "marketing" && (
+  <MarketingTab topRaces={topRaces} />
+)}
     </div>
   );
 }
