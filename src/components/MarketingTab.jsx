@@ -136,9 +136,11 @@ PaceAI es una app gratuita que genera planes de entrenamiento personalizados par
 Disponible en paceia.ezeti.pro
 URL con tracking: ${BASE_URL}?utm_source=${form.red}&utm_medium=post&utm_campaign=${form.distancia.toLowerCase().replace(/\s+/g, '_')}
 
-REGLA OBLIGATORIA: El campo "texto" de CADA post DEBE incluir al final el link UTM completo con este formato exacto:
-"👉 paceia.ezeti.pro?utm_source=${form.red}&utm_medium=post&utm_campaign=${form.distancia.toLowerCase().replace(/\s+/g, '_')}&utm_content=post_[NUMERO_DEL_POST]"
-donde [NUMERO_DEL_POST] es el número secuencial del post (1, 2, 3...). Sin excepción.
+REGLA OBLIGATORIA según red social:
+- Si es INSTAGRAM: el campo "texto" DEBE terminar con "👆 Link en bio para entrenar gratis" (NO poner URL en el texto)
+- Si es FACEBOOK o WHATSAPP: el campo "texto" DEBE terminar con el link completo "👉 paceia.ezeti.pro?utm_source=${form.red}&utm_medium=post&utm_campaign=${form.distancia.toLowerCase().replace(/\s+/g, '_')}&utm_content=post_[NUMERO_DEL_POST]"
+- Si es TIKTOK: el campo "texto" DEBE terminar con "👆 Link en bio" (NO poner URL)
+Red actual: ${form.red}. Aplicar la regla correspondiente. Sin excepción.
 
 Respondé ÚNICAMENTE con este JSON:
 {
@@ -325,6 +327,24 @@ Respondé ÚNICAMENTE con este JSON:
               </div>
             )}
           </div>
+
+          {/* Bio link para Instagram/TikTok */}
+          {(form.red === "instagram" || form.red === "tiktok") && (
+            <div style={{ background: "rgba(225,48,108,0.06)", border: "1px solid rgba(225,48,108,0.2)", borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: ".72rem", color: "#E1306C", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
+                🔗 Link para tu bio de {form.red === "instagram" ? "Instagram" : "TikTok"}
+              </div>
+              <div style={{ fontSize: ".8rem", color: "#888", marginBottom: 12 }}>
+                Poné este link en tu bio — los posts van a decir "link en bio 👆" y los usuarios hacen click acá:
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#0d0d0d", border: "1px solid #2a2a2a", borderRadius: 8, padding: "10px 14px", flexWrap: "wrap" }}>
+                <code style={{ color: "#4fc3f7", fontSize: ".78rem", flex: 1, wordBreak: "break-all" }}>
+                  {`${BASE_URL}?utm_source=${form.red}&utm_medium=bio&utm_campaign=${form.distancia.toLowerCase().replace(/\s+/g, '_')}`}
+                </code>
+                <CopyBtn text={`${BASE_URL}?utm_source=${form.red}&utm_medium=bio&utm_campaign=${form.distancia.toLowerCase().replace(/\s+/g, '_')}`} />
+              </div>
+            </div>
+          )}
 
           {/* Posts */}
           <div>
