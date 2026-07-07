@@ -136,7 +136,9 @@ PaceAI es una app gratuita que genera planes de entrenamiento personalizados par
 Disponible en paceia.ezeti.pro
 URL con tracking: ${BASE_URL}?utm_source=${form.red}&utm_medium=post&utm_campaign=${form.distancia.toLowerCase().replace(/\s+/g, '_')}
 
-REGLA OBLIGATORIA: El campo "texto" de CADA post DEBE incluir el link "paceia.ezeti.pro" al final, precedido por un emoji como 👉 o 🔗. Sin excepción.
+REGLA OBLIGATORIA: El campo "texto" de CADA post DEBE incluir al final el link UTM completo con este formato exacto:
+"👉 paceia.ezeti.pro?utm_source=${form.red}&utm_medium=post&utm_campaign=${form.distancia.toLowerCase().replace(/\s+/g, '_')}&utm_content=post_[NUMERO_DEL_POST]"
+donde [NUMERO_DEL_POST] es el número secuencial del post (1, 2, 3...). Sin excepción.
 
 Respondé ÚNICAMENTE con este JSON:
 {
