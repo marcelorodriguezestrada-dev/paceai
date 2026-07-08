@@ -1806,6 +1806,7 @@ export default function RunnerAI() {
         utm_source: utm.utm_source || "directo",
         utm_medium: utm.utm_medium || "ninguno",
         utm_campaign: utm.utm_campaign || "ninguna",
+        utm_content: utm.utm_content || "ninguno",
       };
       if (user?.token) {
         fbSet(`analytics_${user.uid}`, `pv_${Date.now()}`, event, user.token).catch(() => {});
@@ -2001,6 +2002,7 @@ export default function RunnerAI() {
         utm_source: params.get("utm_source") || "directo",
         utm_medium: params.get("utm_medium") || "ninguno",
         utm_campaign: params.get("utm_campaign") || "ninguna",
+        utm_content: params.get("utm_content") || "ninguno",
       };
       sessionStorage.setItem("paceai_utm", JSON.stringify(utmParams));
       // ──────────────────────────────────────────────────────────────────────
@@ -2213,6 +2215,7 @@ Hora: ${hora}`);
         utm_source: utm.utm_source || "directo",
         utm_medium: utm.utm_medium || "ninguno",
         utm_campaign: utm.utm_campaign || "ninguna",
+        utm_content: utm.utm_content || "ninguno",
         sessionId: window.__paceai_session || "unknown",
       };
       if (user?.token) {
