@@ -869,7 +869,10 @@ export default function AdminPanel({ user, projectId }) {
         <strong style={{ color: "#3b82f6" }}>Nota:</strong> Para ver fuentes UTM, asegurate de que <code style={{ color: "#888" }}>trackEvent()</code> incluya <code style={{ color: "#888" }}>utm_source</code>, <code style={{ color: "#888" }}>utm_medium</code> y <code style={{ color: "#888" }}>utm_campaign</code> leídos desde sessionStorage.
       </div>
       {tab === "marketing" && (
-  <MarketingTab topRaces={topRaces} />
+  <MarketingTab topRaces={topRaces} user={user} />
+)}
+      {tab === "campanas" && (
+  <CampaignHistory user={user} />
 )}
     </div>
   );
