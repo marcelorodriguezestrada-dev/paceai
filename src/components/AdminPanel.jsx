@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import MarketingTab from "./MarketingTab";
+import CampaignHistory from "./CampaignHistory";
 
 const ADMIN_EMAIL = "marcelorodriguezestrada@gmail.com";
 
@@ -529,6 +530,7 @@ export default function AdminPanel({ user, projectId }) {
     { id: "inbox",   label: "💬 Inbox Coach" },
     { id: "users",   label: "👥 Usuarios"   },
     { id: "marketing", label: "📣 Marketing" },
+    { id: "campanas", label: "📁 Campañas" },
   ];
 
   if (loading) return (

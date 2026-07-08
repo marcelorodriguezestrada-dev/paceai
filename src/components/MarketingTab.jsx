@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fbSet } from "../firebase";
 
 const GROQ_API = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY;
@@ -96,7 +97,7 @@ function PostCard({ post, idx, red }) {
   );
 }
 
-export default function MarketingTab({ topRaces = [] }) {
+export default function MarketingTab({ topRaces = [], user }) {
   const [form, setForm] = useState({
     red: "instagram",
     distancia: "21K",
@@ -110,8 +111,42 @@ export default function MarketingTab({ topRaces = [] }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [campaign, setCampaign] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSave = async () => {
+    if (!campaign || !user?.token) return;
+    setSaving(true);
+    try {
+      const id = `camp_${Date.now()}`;
+      await fbSet(`marketing_campaigns_${user.uid}`, id, {
+        titulo: campaign.titulo_campana,
+        concepto: campaign.concepto,
+        publico: campaign.publico_objetivo,
+        red: form.red,
+        distancia: form.distancia,
+        carrera: form.carrera,
+        fecha: form.fecha,
+        objetivo: form.objetivo,
+        tono: form.tono,
+        posts: JSON.stringify(campaign.posts || []),
+        calendario: JSON.stringify(campaign.calendario || []),
+        utm_links: JSON.stringify(campaign.utm_links || []),
+        kpis: JSON.stringify(campaign.kpis || []),
+        presupuesto: campaign.presupuesto_sugerido || "",
+        published_posts: JSON.stringify([]),
+        created_at: new Date().toISOString(),
+      }, user.token);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e) {
+      alert("Error guardando: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -404,14 +439,33 @@ Respondé ÚNICAMENTE con este JSON:
             </div>
           )}
 
-          {/* Botón regenerar */}
-          <button
-            onClick={handleGenerate}
-            disabled={loading}
-            style={{ background: "transparent", border: "1px solid #2a2a2a", color: "#555", padding: "10px 20px", borderRadius: 8, cursor: "pointer", fontSize: ".82rem", fontFamily: "'DM Sans', sans-serif", fontWeight: 700 }}
-          >
-            ↺ Regenerar campaña
-          </button>
+          {/* Botones acción */}
+          <div style={{ display: "flex", gap: 12 }}>
+            <button
+              onClick={handleGenerate}
+              disabled={loading}
+              style={{
+                background: "transparent", border: "1px solid #2a2a2a", color: "#555",
+                padding: "10px 20px", borderRadius: 8, cursor: "pointer",
+                fontSize: ".82rem", fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+              }}
+            >
+              ↺ Regenerar campaña
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || saved || !user?.token}
+              style={{
+                background: saved ? "rgba(34,197,94,.15)" : "rgba(255,69,0,.1)",
+                border: `1px solid ${saved ? "rgba(34,197,94,.4)" : "rgba(255,69,0,.3)"}`,
+                color: saved ? "#22c55e" : "#FF4500",
+                padding: "10px 20px", borderRadius: 8, cursor: "pointer",
+                fontSize: ".82rem", fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+              }}
+            >
+              {saved ? "✓ Campaña guardada" : saving ? "⟳ Guardando..." : "💾 Guardar campaña"}
+            </button>
+          </div>
         </div>
       )}
     </div>
