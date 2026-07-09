@@ -117,11 +117,12 @@ export default function MarketingTab({ topRaces = [], user }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
-    if (!campaign || !user?.token) return;
+    if (!campaign) { alert("No hay campaña para guardar"); return; }
+    if (!user?.token) { alert("Error: no hay token de usuario. Intentá cerrar sesión y volver a entrar."); return; }
     setSaving(true);
     try {
       const id = `camp_${Date.now()}`;
-      await fbSet(`marketing_campaigns_${user.uid}`, id, {
+      const result = await fbSet(`marketing_campaigns_${user.uid}`, id, {
         titulo: campaign.titulo_campana,
         concepto: campaign.concepto,
         publico: campaign.publico_objetivo,
@@ -139,10 +140,11 @@ export default function MarketingTab({ topRaces = [], user }) {
         published_posts: JSON.stringify([]),
         created_at: new Date().toISOString(),
       }, user.token);
+      if (result?.error) throw new Error(result.error.message || JSON.stringify(result.error));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e) {
-      alert("Error guardando: " + e.message);
+      alert("Error guardando campaña: " + e.message);
     } finally {
       setSaving(false);
     }
