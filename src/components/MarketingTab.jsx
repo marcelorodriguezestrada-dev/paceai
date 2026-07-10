@@ -118,9 +118,24 @@ export default function MarketingTab({ topRaces = [], user }) {
 
   const handleSave = async () => {
     if (!campaign) { alert("No hay campaña para guardar"); return; }
-    if (!user?.token) { alert("Error: no hay token de usuario. Intentá cerrar sesión y volver a entrar."); return; }
+    if (!user?.token) { alert("Error: no hay sesión activa. Cerrá sesión y volvé a entrar."); return; }
     setSaving(true);
     try {
+      // Refrescar token antes de guardar
+      let token = user.token;
+      try {
+        const session = JSON.parse(localStorage.getItem("paceai_session") || "{}");
+        if (session.refreshToken) {
+          const r = await fetch(`https://securetoken.googleapis.com/v1/token?key=${import.meta.env.VITE_FB_API_KEY}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `grant_type=refresh_token&refresh_token=${session.refreshToken}`,
+          });
+          const d = await r.json();
+          if (d.id_token) token = d.id_token;
+        }
+      } catch {}
+
       const id = `camp_${Date.now()}`;
       const result = await fbSet(`marketing_campaigns_${user.uid}`, id, {
         titulo: campaign.titulo_campana,
@@ -139,7 +154,7 @@ export default function MarketingTab({ topRaces = [], user }) {
         presupuesto: campaign.presupuesto_sugerido || "",
         published_posts: JSON.stringify([]),
         created_at: new Date().toISOString(),
-      }, user.token);
+      }, token);
       if (result?.error) throw new Error(result.error.message || JSON.stringify(result.error));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
