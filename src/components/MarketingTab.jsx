@@ -1,5 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { fbSet } from "../firebase";
+
+const STORAGE_KEY = "paceai_marketing_draft";
+
+function loadDraft() {
+  try {
+    const d = sessionStorage.getItem(STORAGE_KEY);
+    return d ? JSON.parse(d) : null;
+  } catch { return null; }
+}
+
+function saveDraft(form, campaign) {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ form, campaign }));
+  } catch {}
+}
 
 const GROQ_API = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY;
@@ -98,7 +113,8 @@ function PostCard({ post, idx, red }) {
 }
 
 export default function MarketingTab({ topRaces = [], user }) {
-  const [form, setForm] = useState({
+  const draft = loadDraft();
+  const [form, setForm] = useState(draft?.form || {
     red: "instagram",
     distancia: "21K",
     carrera: "",
@@ -110,9 +126,14 @@ export default function MarketingTab({ topRaces = [], user }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [campaign, setCampaign] = useState(null);
+  const [campaign, setCampaign] = useState(draft?.campaign || null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Persistir en sessionStorage cuando cambia form o campaign
+  useEffect(() => {
+    saveDraft(form, campaign);
+  }, [form, campaign]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -457,7 +478,7 @@ Respondé ÚNICAMENTE con este JSON:
           )}
 
           {/* Botones acción */}
-          <div style={{ display: "flex", gap: 12 }}>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
             <button
               onClick={handleGenerate}
               disabled={loading}
@@ -481,6 +502,19 @@ Respondé ÚNICAMENTE con este JSON:
               }}
             >
               {saved ? "✓ Campaña guardada" : saving ? "⟳ Guardando..." : "💾 Guardar campaña"}
+            </button>
+            <button
+              onClick={() => {
+                sessionStorage.removeItem(STORAGE_KEY);
+                setCampaign(null);
+              }}
+              style={{
+                background: "transparent", border: "1px solid #1a1a1a", color: "#333",
+                padding: "10px 16px", borderRadius: 8, cursor: "pointer",
+                fontSize: ".78rem", fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              🗑 Limpiar borrador
             </button>
           </div>
         </div>
