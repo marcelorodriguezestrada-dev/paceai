@@ -441,20 +441,79 @@ Respondé ÚNICAMENTE con este JSON:
           {/* Calendario */}
           {campaign.calendario?.length > 0 && (
             <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 20 }}>
-              <div style={{ fontSize: ".72rem", color: "#FF4500", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
-                📅 Calendario sugerido
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <div style={{ fontSize: ".72rem", color: "#FF4500", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                  📅 Calendario sugerido
+                </div>
+                <button
+                  onClick={() => {
+                    // Agregar todos los eventos al calendario
+                    campaign.calendario.forEach((c, i) => {
+                      const post = campaign.posts?.[c.post_idx || 0];
+                      if (!post) return;
+                      const baseDate = form.fecha ? new Date(form.fecha) : new Date();
+                      baseDate.setDate(baseDate.getDate() - (30 - (c.dia || i * 3)));
+                      const [h, m] = (post.hora_optima || "09:00").split(":").map(Number);
+                      baseDate.setHours(h, m, 0, 0);
+                      const end = new Date(baseDate.getTime() + 30 * 60000);
+                      const fmt = d => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+                      const desc = [
+                        post.texto,
+                        post.hashtags && `\n${post.hashtags}`,
+                        post.cta && `\nCTA: ${post.cta}`,
+                        post.tip_visual && `\n🎨 Visual: ${post.tip_visual}`,
+                        campaign.utm_links?.[0]?.url && `\n🔗 ${campaign.utm_links[0].url}`,
+                      ].filter(Boolean).join("");
+                      const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`📸 Post ${(c.post_idx||0)+1} — ${post.formato||"Feed"} | PaceAI ${form.distancia}`)}&dates=${fmt(baseDate)}/${fmt(end)}&details=${encodeURIComponent(desc)}`;
+                      setTimeout(() => window.open(url, "_blank"), i * 300);
+                    });
+                  }}
+                  style={{ fontSize: ".72rem", background: "rgba(66,133,244,.1)", border: "1px solid rgba(66,133,244,.3)", color: "#4285f4", padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontWeight: 700, fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  📅 Agregar todos a Calendar
+                </button>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {campaign.calendario.map((c, i) => (
-                  <div key={i} style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "8px 0", borderBottom: "1px solid #1a1a1a" }}>
-                    <span style={{ background: "rgba(255,69,0,.1)", border: "1px solid rgba(255,69,0,.2)", color: "#FF4500", padding: "2px 10px", borderRadius: 20, fontSize: ".72rem", fontWeight: 700, flexShrink: 0 }}>
-                      Día {c.dia}
-                    </span>
-                    <span style={{ fontSize: ".78rem", color: "#888" }}>
-                      Post {(c.post_idx || 0) + 1} — {c.nota}
-                    </span>
-                  </div>
-                ))}
+                {campaign.calendario.map((c, i) => {
+                  const post = campaign.posts?.[c.post_idx || 0];
+                  const baseDate = form.fecha ? new Date(form.fecha) : new Date();
+                  baseDate.setDate(baseDate.getDate() - (30 - (c.dia || i * 3)));
+                  const [h, m] = (post?.hora_optima || "09:00").split(":").map(Number);
+                  baseDate.setHours(h, m, 0, 0);
+                  const end = new Date(baseDate.getTime() + 30 * 60000);
+                  const fmt = d => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+                  const desc = post ? [
+                    post.texto,
+                    post.hashtags && `\n${post.hashtags}`,
+                    post.cta && `\nCTA: ${post.cta}`,
+                    post.tip_visual && `\n🎨 Visual: ${post.tip_visual}`,
+                    campaign.utm_links?.[0]?.url && `\n🔗 ${campaign.utm_links[0].url}`,
+                  ].filter(Boolean).join("") : "";
+                  const calUrl = post ? `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`📸 Post ${(c.post_idx||0)+1} — ${post.formato||"Feed"} | PaceAI ${form.distancia}`)}&dates=${fmt(baseDate)}/${fmt(end)}&details=${encodeURIComponent(desc)}` : null;
+
+                  return (
+                    <div key={i} style={{ display: "flex", gap: 14, alignItems: "center", padding: "8px 0", borderBottom: "1px solid #1a1a1a" }}>
+                      <span style={{ background: "rgba(255,69,0,.1)", border: "1px solid rgba(255,69,0,.2)", color: "#FF4500", padding: "2px 10px", borderRadius: 20, fontSize: ".72rem", fontWeight: 700, flexShrink: 0 }}>
+                        Día {c.dia}
+                      </span>
+                      <span style={{ fontSize: ".78rem", color: "#888", flex: 1 }}>
+                        Post {(c.post_idx || 0) + 1} — {c.nota}
+                      </span>
+                      {post?.hora_optima && (
+                        <span style={{ fontSize: ".68rem", color: "#555" }}>🕐 {post.hora_optima}</span>
+                      )}
+                      {calUrl && (
+                        <a href={calUrl} target="_blank" rel="noreferrer" style={{
+                          fontSize: ".68rem", background: "rgba(66,133,244,.08)", border: "1px solid rgba(66,133,244,.2)",
+                          color: "#4285f4", padding: "3px 10px", borderRadius: 6, textDecoration: "none",
+                          fontWeight: 700, fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap", flexShrink: 0,
+                        }}>
+                          📅 Agendar
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
