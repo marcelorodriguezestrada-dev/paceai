@@ -1881,9 +1881,36 @@ export default function RunnerAI() {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
-  const [trainPlan, setTrainPlan] = useState(null);
+
+  // Persistir trainPlan en localStorage para sobrevivir navegación accidental
+  const PLAN_KEY = "paceai_train_plan";
+  const WEEK_KEY = "paceai_active_week";
+
+  const loadPersistedPlan = () => {
+    try {
+      const saved = localStorage.getItem(PLAN_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  };
+
+  const [trainPlan, setTrainPlanRaw] = useState(() => loadPersistedPlan());
   const [genPlan, setGenPlan] = useState(false);
-  const [activeWeek, setActiveWeek] = useState(0);
+  const [activeWeek, setActiveWeekRaw] = useState(() => {
+    try { return parseInt(localStorage.getItem(WEEK_KEY) || "0"); } catch { return 0; }
+  });
+
+  const setTrainPlan = (plan) => {
+    setTrainPlanRaw(plan);
+    try {
+      if (plan) localStorage.setItem(PLAN_KEY, JSON.stringify(plan));
+      else localStorage.removeItem(PLAN_KEY);
+    } catch {}
+  };
+
+  const setActiveWeek = (week) => {
+    setActiveWeekRaw(week);
+    try { localStorage.setItem(WEEK_KEY, String(week)); } catch {}
+  };
   const [showAuth, setShowAuth] = useState(false);
   const [authTab, setAuthTab] = useState("login");
   const [authForm, setAuthForm] = useState({ email: "", password: "" });
